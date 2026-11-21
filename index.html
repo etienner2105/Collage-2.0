@@ -192,11 +192,20 @@ svg.wk text.v{fill:var(--fg); font-weight:600}
 .hist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
 .hist li{display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px 10px; padding:8px 10px; background:var(--bg); border-radius:8px; font-size:.9rem}
 
+.toprow{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.top .btn{background:transparent; color:var(--on-navy); border-color:rgba(255,255,255,.45)}
+.authbox{max-width:420px; margin:24px auto 0; width:100%}
+.authbox form{display:flex; flex-direction:column; gap:12px}
+.locked .side,.locked .camps{display:none}
+.locked .brand-m{display:flex}
+@media (min-width:900px){ .locked .app{grid-template-columns:1fr} .toprow{order:2} .camps{order:1} }
 #toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(86px + env(safe-area-inset-bottom, 0px)); z-index:60; background:var(--fg); color:var(--bg); padding:9px 16px; border-radius:99px; font-size:.9rem; font-weight:500; max-width:calc(100% - 32px); opacity:0; pointer-events:none}
 #toast.on{opacity:1}
 @media (min-width:900px){ #toast{bottom:24px} }
 @media (prefers-reduced-motion:no-preference){ #toast{transition:opacity .2s} }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
 
 </head>
 <body>
@@ -207,7 +216,7 @@ svg.wk text.v{fill:var(--fg); font-weight:600}
   </aside>
   <div class="main">
     <header class="top">
-      <div class="brand brand-m" id="brandTop"></div>
+      <div class="toprow"><div class="brand brand-m" id="brandTop"></div><button type="button" class="btn small" id="logout" data-act="logout" hidden>Se déconnecter</button></div>
       <div class="camps" id="camps" role="tablist" aria-label="Campagne d'affiches"></div>
     </header>
     <div class="banner" id="banner"></div>
@@ -299,7 +308,7 @@ var S={
   tours:{}, tourOpts:{start:'auto',scope:'todo',max:0}, sheet:null, confirm:null
 };
 var TABS=SECTIONS.map(function(s){return s[0];});
-var db=null, userNS=null;
+var db=null, userNS=null, sb=null, rt=null, timers={};
 
 function reindex(){
   var idx={};
@@ -361,40 +370,85 @@ function enqueue(key,fn){ var prev=queues.get(key)||Promise.resolve(); var next=
 function fail(e){ toast('Enregistrement impossible'+(e&&e.code?' ('+e.code+')':'')); }
 function savePanel(p){
   var body={}; Object.keys(p).forEach(function(k){ if(k!=='id'&&p[k]!==undefined) body[k]=p[k]; });
-  return enqueue(p.id,function(){ return db.collection('panneaux').doc(p.id).set(body); });
+  return enqueue(p.id,function(){ return put('panneaux',p.id,body); });
 }
 function logEvent(o){
   var now=new Date().toISOString();
   var e=Object.assign({campagne:S.camp,at:now,rec:now,auteurId:S.me.id||null,auteurNom:S.me.name||'',note:''},o);
   Object.keys(e).forEach(function(k){ if(e[k]===undefined) delete e[k]; });
-  return db.collection('interventions').doc(uid()).set(e);
+  return put('interventions',uid(),e,true);
 }
-function saveSettings(){ return enqueue('settings',function(){ return db.doc('reglages/main').set({seuil:S.settings.seuil,mode:S.settings.mode}); }); }
+function saveSettings(){ return enqueue('settings',function(){ return put('reglages','main',{seuil:S.settings.seuil,mode:S.settings.mode}); }); }
 
+function fail2(r){ if(r.error) throw {code:r.error.code||r.error.message}; return r; }
+function put(table,id,body,insertOnly){
+  var q=insertOnly?sb.from(table).insert({id:id,data:body}):sb.from(table).upsert({id:id,data:body});
+  return q.then(fail2).then(function(){ return reload(table); });
+}
+function del(table,id){ return sb.from(table).delete().eq('id',id).then(fail2).then(function(){ return reload(table); }); }
+function reload(table){ return table==='panneaux'?loadP():table==='interventions'?loadI():loadR(); }
+async function fetchAll(table){
+  var out=[],from=0,size=1000;
+  for(;;){
+    var r=await sb.from(table).select('id,data').order('id').range(from,from+size-1);
+    if(r.error) return {error:r.error};
+    out=out.concat(r.data||[]); if(!r.data||r.data.length<size) break; from+=size;
+  }
+  return {data:out};
+}
+async function loadP(){
+  var r=await fetchAll('panneaux');
+  if(r.error) S.error=r.error.code||r.error.message; else{ S.error=null; S.panels=r.data.map(function(x){return Object.assign({},x.data,{id:x.id});}); }
+  S.loadedP=true; render();
+}
+async function loadI(){
+  var r=await fetchAll('interventions');
+  if(r.error) S.error=r.error.code||r.error.message; else{ S.error=null; S.inter=r.data.map(function(x){return Object.assign({},x.data,{id:x.id});}); reindex(); }
+  S.loadedI=true; render();
+}
+async function loadR(){
+  var r=await sb.from('reglages').select('id,data').eq('id','main');
+  if(!r.error&&r.data&&r.data[0]){ var d=r.data[0].data||{}; S.settings=Object.assign({},S.settings,{seuil:d.seuil||S.settings.seuil,mode:d.mode||S.settings.mode}); render(); }
+}
+function later(k,fn){ clearTimeout(timers[k]); timers[k]=setTimeout(fn,200); }
+function subscribe(){
+  if(rt){ sb.removeChannel(rt); rt=null; }
+  var on=function(c,t,fn){ return c.on('postgres_changes',{event:'*',schema:'public',table:t},function(){ later(t,fn); }); };
+  var c=sb.channel('maj'); c=on(c,'panneaux',loadP); c=on(c,'interventions',loadI); c=on(c,'reglages',loadR);
+  rt=c.subscribe();
+}
+async function handleSession(session){
+  if(!session){
+    S.uid=null; if(rt){ sb.removeChannel(rt); rt=null; }
+    S.noDb=true; S.auth='login'; S.loadedP=S.loadedI=true; S.panels=[]; S.inter=[]; reindex(); S.me={id:null,name:''}; S.sheet=null; renderSheet(); render(); return;
+  }
+  if(S.uid===session.user.id&&S.auth==='ready') return;
+  S.uid=session.user.id;
+  var m=await sb.from('membres').select('id,nom');
+  if(m.error||!m.data||!m.data.some(function(x){return x.id===S.uid;})){ S.noDb=true; S.auth='denied'; S.loadedP=S.loadedI=true; render(); return; }
+  m.data.forEach(function(x){ S.names[x.id]=x.nom; });
+  S.me={id:S.uid,name:S.names[S.uid]||''};
+  S.noDb=false; S.auth='ready'; S.loadedP=S.loadedI=false; render();
+  await Promise.all([loadP(),loadI(),loadR()]);
+  subscribe();
+}
+function authView(){
+  if(S.auth==='config') return '<div class="empty"><h2>Configuration manquante</h2><p>Renseigne l\'adresse et la clé publique de ton projet Supabase dans le fichier config.js, puis recharge la page.</p></div>';
+  if(S.auth==='denied') return '<div class="empty"><h2>Accès refusé</h2><p>Ce compte n\'est pas l\'un des trois membres autorisés. Demande à l\'administrateur de l\'ajouter.</p><div class="row"><button type="button" class="btn primary" data-act="logout">Se déconnecter</button></div></div>';
+  if(S.auth!=='login') return '<div class="empty"><p>Chargement…</p></div>';
+  return '<div class="panel authbox"><h2>Connexion</h2><p class="muted" style="margin:0">Accès réservé aux trois membres de l\'équipe.</p>'
+   +'<form id="loginForm" novalidate><div class="field"><label for="l-mail">Identifiant (adresse e-mail)</label><input id="l-mail" name="email" type="email" autocomplete="username" autocapitalize="none"></div>'
+   +'<div class="field"><label for="l-pw">Mot de passe</label><input id="l-pw" name="password" type="password" autocomplete="current-password"></div>'
+   +'<p class="err" id="formErr" role="alert"></p><button type="submit" class="btn primary">Se connecter</button></form></div>';
+}
 async function init(){
   var c=lsGet('tournez-camp'); if(c&&CAMPS[c]) S.camp=c;
   try{ S.tours=JSON.parse(lsGet('tournez-tours')||'{}')||{}; }catch(e){ S.tours={}; }
   render();
-  try{ db=(window.claude&&window.claude.use)?await window.claude.use('db'):null; }catch(e){ db=null; }
-  try{ userNS=(window.claude&&window.claude.use)?await window.claude.use('user'):null; }catch(e){ userNS=null; }
-  if(!db){ S.noDb=true; S.loadedP=S.loadedI=true; render(); return; }
-  if(userNS){
-    try{ var me=await userNS.me(); S.me={id:me.id||null,name:me.name||''}; if(S.me.id&&S.me.name) S.names[S.me.id]=S.me.name; }catch(e){}
-    try{ var cw=await userNS.can('data.write'); S.canWrite=(cw!==false); }catch(e){}
-  }
-  var t=setTimeout(function(){ if(!(S.loadedP&&S.loadedI)){ S.slow=true; render(); } },10000);
-  var done=function(){ if(S.loadedP&&S.loadedI){ clearTimeout(t); S.slow=false; } };
-  db.collection('panneaux').onSnapshot(function(snap){
-    S.panels=snap.docs.map(function(d){ return Object.assign({},d.data(),{id:d.id}); });
-    S.loadedP=true; done(); render();
-  },function(err){ S.error=err.code; S.loadedP=true; done(); render(); });
-  db.collection('interventions').onSnapshot(function(snap){
-    S.inter=snap.docs.map(function(d){ return Object.assign({},d.data(),{id:d.id}); });
-    reindex(); S.loadedI=true; done(); render();
-  },function(err){ S.error=err.code; S.loadedI=true; done(); render(); });
-  db.doc('reglages/main').onSnapshot(function(s){
-    if(s.exists){ var d=s.data(); S.settings=Object.assign({},S.settings,{seuil:d.seuil||S.settings.seuil,mode:d.mode||S.settings.mode}); render(); }
-  },function(){});
+  var cfg=window.APP_CONFIG||{};
+  if(!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY||!window.supabase){ S.noDb=true; S.auth='config'; S.loadedP=S.loadedI=true; render(); return; }
+  sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
+  sb.auth.onAuthStateChange(function(ev,session){ setTimeout(function(){ handleSession(session); },0); });
 }
 async function resolveNames(){
   if(!userNS) return;
@@ -642,9 +696,9 @@ function renderBanner(){
   $('#banner').innerHTML=p.map(function(t){return '<div class="note">'+t+'</div>';}).join('');
 }
 function render(keepFocus){
-  renderChrome(); renderBanner();
+  renderChrome(); renderBanner(); $('#logout').hidden=!!S.noDb; document.body.classList.toggle('locked',!!S.noDb);
   var v=$('#view');
-  if(S.noDb){ v.innerHTML='<div class="empty"><h2>Accès privé</h2><p>Cette application est réservée aux trois membres invités par l\'administrateur. Ouvre-la depuis ton compte Claude pour voir et modifier les panneaux.</p></div>'; return; }
+  if(S.noDb){ v.innerHTML=authView(); return; }
   if(!(S.loadedP&&S.loadedI)){ v.innerHTML='<div class="empty"><p>Chargement des panneaux…</p></div>'; return; }
   var ae=document.activeElement,aid=ae&&ae.id&&/^(q|h-q)$/.test(ae.id)?ae.id:null,pos=aid?ae.selectionStart:0;
   v.innerHTML=S.tab==='tournee'?viewTournee():S.tab==='historique'?viewHistorique():S.tab==='panneaux'?viewPanneaux():viewTableau();
@@ -723,6 +777,7 @@ function setTab(t){ if(TABS.indexOf(t)<0) t='tableau'; S.tab=t; try{ if(location
 document.addEventListener('click',function(ev){
   var b=ev.target.closest('[data-act]'); if(!b) return;
   var a=b.dataset.act,id=b.dataset.id;
+  if(a==='logout'){ if(sb) sb.auth.signOut(); return; }
   if(a==='tab') return setTab(b.dataset.tab);
   if(a==='camp'){ S.camp=b.dataset.camp; lsSet('tournez-camp',S.camp); return render(); }
   if(a==='filter'){ S.filter=b.dataset.f; return render(); }
@@ -739,7 +794,7 @@ document.addEventListener('click',function(ev){
   if(a==='cancel-del'){ S.confirm=null; return renderSheet(); }
   if(a==='del-panel-ok'){
     var p=S.panels.find(function(x){return x.id===id;}); if(!p) return;
-    return logEvent({panelId:p.id,panelNom:p.nom,action:'suppression',campagne:''}).then(function(){ return enqueue(id,function(){ return db.collection('panneaux').doc(id).delete(); }); })
+    return logEvent({panelId:p.id,panelNom:p.nom,action:'suppression',campagne:''}).then(function(){ return enqueue(id,function(){ return del('panneaux',id); }); })
       .then(function(){ Object.keys(S.tours).forEach(function(k){ if(S.tours[k]) S.tours[k].ids=S.tours[k].ids.filter(function(x){return x!==id;}); }); closeSheet(); toast('Panneau supprimé'); }).catch(fail);
   }
 });
@@ -767,6 +822,13 @@ document.addEventListener('change',function(e){
 document.addEventListener('submit',function(e){
   e.preventDefault();
   var form=e.target,err=$('#formErr'),f=new FormData(form);
+  if(form.id==='loginForm'){
+    var em=String(f.get('email')||'').trim(),pw=String(f.get('password')||'');
+    if(!em||!pw){ err.textContent='Renseigne ton identifiant et ton mot de passe.'; return; }
+    var lb=form.querySelector('button[type=submit]'); lb.disabled=true; err.textContent='';
+    sb.auth.signInWithPassword({email:em,password:pw}).then(function(r){ if(r.error){ err.textContent='Identifiant ou mot de passe incorrect.'; lb.disabled=false; } });
+    return;
+  }
   if(form.id==='logForm'){
     var p=S.panels.find(function(x){return x.id===form.dataset.id;}); if(!p) return;
     var at=new Date(f.get('at')); if(isNaN(at.getTime())){ err.textContent='Indique une date valide.'; return; }
