@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Tournez l'affichage</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Mise en page : barre latérale bleu marine sur ordinateur, barre de navigation en bas sur téléphone. En tête, deux onglets de campagne. Contenu en cartes blanches. */
+:root{
+  --bg:#eef2fa; --surface:#ffffff; --surface2:#e4eaf6; --fg:#0c1a3d; --muted:#4f5b79; --line:#d3dbec;
+  --navy:#0b1f4d; --navy2:#1b3a8c; --on-navy:#ffffff; --on-navy-muted:#b9c6e8;
+  --accent:#1f4fd8; --accent-fg:#ffffff; --accent-soft:#dfe8ff;
+  --ok:#146c37; --ok-bg:#d9f1e3; --warn:#8a5200; --warn-bg:#fbe9c4; --bad:#a8231b; --bad-bg:#fadbd8; --none:#454b5c; --none-bg:#e3e5ed;
+  --font-display:'Space Grotesk','Helvetica Neue',Arial,sans-serif;
+  --font-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --radius:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#080e1f; --surface:#101a35; --surface2:#18254a; --fg:#eaf0ff; --muted:#9fb0d8; --line:#233159;
+    --navy:#12255a; --navy2:#2349a8; --on-navy:#ffffff; --on-navy-muted:#b9c6e8;
+    --accent:#7aa0ff; --accent-fg:#06112e; --accent-soft:#1c2c5c;
+    --ok:#6fd49a; --ok-bg:#12301f; --warn:#f0b955; --warn-bg:#3a2a0a; --bad:#ff8f86; --bad-bg:#3d1512; --none:#aab0c2; --none-bg:#262a38;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#080e1f; --surface:#101a35; --surface2:#18254a; --fg:#eaf0ff; --muted:#9fb0d8; --line:#233159;
+  --navy:#12255a; --navy2:#2349a8; --on-navy:#ffffff; --on-navy-muted:#b9c6e8;
+  --accent:#7aa0ff; --accent-fg:#06112e; --accent-soft:#1c2c5c;
+  --ok:#6fd49a; --ok-bg:#12301f; --warn:#f0b955; --warn-bg:#3a2a0a; --bad:#ff8f86; --bad-bg:#3d1512; --none:#aab0c2; --none-bg:#262a38;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg); font:15px/1.5 var(--font-body);
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:16px 100px;
+}
+h1,h2,h3{font-family:var(--font-display); margin:0; letter-spacing:-0.01em; text-wrap:balance}
+h2{font-size:1.3rem; line-height:1.2}
+h3{font-size:1.02rem}
+.muted{color:var(--muted)}
+button,input,select,textarea{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.ic{width:20px; height:20px; flex:none}
+
+.app{max-width:1180px; margin:0 auto; display:block}
+.main{min-width:0; display:flex; flex-direction:column; gap:16px}
+
+/* navigation */
+.side{position:fixed; left:0; right:0; bottom:0; z-index:30; background:var(--navy); color:var(--on-navy);
+  padding:6px max(8px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-right, 0px))}
+.side .brand{display:none}
+#nav{display:flex; gap:2px; max-width:640px; margin:0 auto}
+#nav button{flex:1; min-width:0; min-height:52px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; border:0; background:transparent; color:var(--on-navy-muted); border-radius:10px; cursor:pointer; font-size:.72rem; font-weight:600}
+#nav button[aria-current="page"]{background:var(--navy2); color:var(--on-navy)}
+.brand{display:flex; align-items:center; gap:10px; font:700 1.08rem/1.15 var(--font-display); color:var(--on-navy)}
+.brand svg{width:34px; height:34px; flex:none}
+
+.top{background:var(--navy); color:var(--on-navy); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:12px}
+.camps{display:grid; grid-template-columns:1fr 1fr; gap:4px; background:rgba(255,255,255,.1); padding:4px; border-radius:12px}
+.camps button{min-height:46px; border:0; border-radius:9px; background:transparent; color:var(--on-navy); font:600 .98rem/1.2 var(--font-display); cursor:pointer; padding:4px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center}
+.camps button small{font:500 .72rem/1.2 var(--font-body); opacity:.85}
+.camps button[aria-selected="true"]{background:#fff; color:var(--navy)}
+
+@media (min-width:900px){
+  body{padding-block:20px 40px}
+  .app{display:grid; grid-template-columns:236px minmax(0,1fr); gap:20px; align-items:start}
+  .side{position:sticky; top:20px; left:auto; right:auto; bottom:auto; border-radius:16px; padding:18px 12px; display:flex; flex-direction:column; gap:22px}
+  .side .brand{display:flex; padding:0 6px}
+  #nav{flex-direction:column; gap:4px; max-width:none; margin:0}
+  #nav button{flex-direction:row; justify-content:flex-start; gap:12px; min-height:44px; padding:0 12px; font-size:.95rem}
+  .brand-m{display:none}
+  .top{flex-direction:row; align-items:center; justify-content:space-between}
+  .camps{width:min(460px,100%)}
+}
+
+/* boutons et formulaires */
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:42px; padding:0 15px; border-radius:10px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font-weight:600; text-decoration:none; color:var(--fg)}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+.btn.small{min-height:36px; padding:0 12px; font-size:.88rem}
+.btn.danger{color:var(--bad); border-color:var(--bad)}
+.btn:disabled{opacity:.5; cursor:default}
+input[type=text],input[type=search],input[type=number],input[type=datetime-local],select,textarea{
+  width:100%; min-height:44px; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:var(--fg)}
+label,legend{font-size:.85rem; font-weight:600; display:block; margin-bottom:4px}
+fieldset{border:0; padding:0; margin:0; min-width:0}
+.field{display:flex; flex-direction:column; min-width:0}
+.hint{font-size:.82rem; color:var(--muted); margin:4px 0 0}
+.err{color:var(--bad); font-size:.88rem; margin:0}
+.err:empty{display:none}
+.row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{min-height:36px; padding:0 13px; border-radius:99px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font-size:.88rem; font-weight:500}
+.chip[aria-pressed="true"]{background:var(--navy); color:var(--on-navy); border-color:var(--navy)}
+
+.banner{display:flex; flex-direction:column; gap:6px}
+.note{display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; background:var(--warn-bg); color:var(--warn); border-radius:10px; padding:10px 12px; font-size:.9rem}
+
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; display:flex; flex-direction:column; gap:12px; min-width:0}
+.pagehead{display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; justify-content:space-between}
+.empty{background:var(--surface); border:1px dashed var(--line); border-radius:var(--radius); padding:24px 18px; display:flex; flex-direction:column; gap:10px}
+.empty p{margin:0; max-width:56ch}
+
+/* statuts */
+.pill{display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:99px; font-size:.78rem; font-weight:600; white-space:nowrap}
+.pill::before{content:""; width:7px; height:7px; border-radius:50%; background:currentColor}
+.pill.ok{background:var(--ok-bg); color:var(--ok)} .pill.warn{background:var(--warn-bg); color:var(--warn)}
+.pill.bad{background:var(--bad-bg); color:var(--bad)} .pill.none{background:var(--none-bg); color:var(--none)}
+.pill.info{background:var(--accent-soft); color:var(--accent)}
+
+/* tableau de bord */
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px}
+.tile{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; display:flex; flex-direction:column; gap:6px; min-width:0}
+.tile .ti{display:flex; align-items:center; gap:8px; color:var(--muted); font-size:.82rem; font-weight:500}
+.tile b{font:700 1.9rem/1 var(--font-display); font-variant-numeric:tabular-nums}
+.tile.ok b,.tile.ok .ic{color:var(--ok)} .tile.warn b,.tile.warn .ic{color:var(--warn)} .tile.bad b,.tile.bad .ic{color:var(--bad)} .tile.none b,.tile.none .ic{color:var(--none)} .tile.info b,.tile.info .ic{color:var(--accent)}
+.charts{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px}
+.stack{display:flex; height:22px; border-radius:99px; overflow:hidden; background:var(--surface2)}
+.stack span{display:block; min-width:0}
+.seg-ok{background:var(--ok)} .seg-warn{background:var(--warn)} .seg-bad{background:var(--bad)} .seg-none{background:var(--none)}
+.legend{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:6px 12px; font-size:.9rem}
+.legend li{display:flex; align-items:center; gap:8px}
+.legend i{width:11px; height:11px; border-radius:3px; flex:none}
+.legend b{margin-left:auto; font-variant-numeric:tabular-nums}
+.bars{display:flex; flex-direction:column; gap:7px}
+.hb{display:grid; grid-template-columns:minmax(80px,120px) 1fr 36px; gap:10px; align-items:center; font-size:.88rem}
+.hb .t{height:14px; border-radius:99px; background:var(--surface2); overflow:hidden}
+.hb .f{display:block; height:100%; background:var(--accent); border-radius:99px}
+.hb b{text-align:right; font-variant-numeric:tabular-nums}
+.hb span:first-child{overflow-wrap:anywhere}
+svg.wk{width:100%; height:auto; display:block}
+svg.wk .bar{fill:var(--accent)}
+svg.wk .base{stroke:var(--line); stroke-width:1}
+svg.wk text{fill:var(--muted); font:500 11px var(--font-body); text-anchor:middle}
+svg.wk text.v{fill:var(--fg); font-weight:600}
+
+/* panneaux */
+.toolbar{display:flex; gap:8px}
+.toolbar input{flex:1; min-width:0}
+.list{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr)); gap:10px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px; display:flex; flex-direction:column; gap:12px; min-width:0}
+.card-main{text-align:left; background:none; border:0; padding:0; cursor:pointer; display:flex; flex-direction:column; gap:4px; min-width:0}
+.card-title{display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center}
+.name{font:700 1.02rem/1.25 var(--font-display); overflow-wrap:anywhere}
+.addr,.meta{font-size:.86rem; color:var(--muted); overflow-wrap:anywhere}
+.card-actions{display:flex; gap:8px; margin-top:auto}
+.card-actions .btn{flex:1}
+
+/* tournée */
+.stops{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px}
+.stop{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px; display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap}
+.stop.done{opacity:.62}
+.num{flex:none; width:32px; height:32px; border-radius:50%; background:var(--navy); color:var(--on-navy); font:700 .9rem/32px var(--font-display); text-align:center; font-variant-numeric:tabular-nums}
+.stop.done .num{background:var(--ok); color:var(--surface)}
+.stop-main{flex:1 1 200px; min-width:0; display:flex; flex-direction:column; gap:3px}
+.stop-side{display:flex; flex-direction:column; align-items:flex-end; gap:6px}
+.leg{font-size:.8rem; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
+.links{display:flex; flex-wrap:wrap; gap:8px}
+
+/* historique */
+.feed{list-style:none; margin:0; padding:0; display:flex; flex-direction:column}
+.feed li{display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px; align-items:start; padding:12px 2px; border-bottom:1px solid var(--line)}
+.feed li:last-child{border-bottom:0}
+.av{width:34px; height:34px; border-radius:50%; background:var(--navy); color:var(--on-navy); display:grid; place-items:center; font:700 .85rem var(--font-display)}
+.feed .who{font-weight:600}
+.when{font-size:.82rem; color:var(--muted); font-variant-numeric:tabular-nums; text-align:right}
+.feed .what{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; margin-top:2px}
+@media (max-width:560px){ .feed li{grid-template-columns:auto 1fr} .when{grid-column:2; text-align:left} }
+.filters{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px}
+
+/* feuille de saisie */
+.sheet{position:fixed; inset:0; z-index:50; background:rgba(5,9,22,.6); display:flex; align-items:flex-end; justify-content:center}
+.sheet-card{background:var(--surface); width:100%; max-width:580px; max-height:92%; overflow:auto; border-radius:18px 18px 0 0; padding:18px max(16px, env(safe-area-inset-left, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px)); display:flex; flex-direction:column; gap:14px}
+@media (min-width:640px){ .sheet{align-items:center} .sheet-card{border-radius:18px; max-height:88%; padding:20px} }
+.opts{display:flex; gap:6px; flex-wrap:wrap}
+.opt{position:relative; flex:1 1 130px}
+.opt input{position:absolute; opacity:0; inset:0; width:100%; height:100%; margin:0; cursor:pointer}
+.opt span{display:flex; align-items:center; justify-content:center; text-align:center; min-height:44px; padding:6px 10px; border:1px solid var(--line); border-radius:10px; background:var(--surface); font-weight:600; font-size:.92rem}
+.opt input:checked + span{background:var(--navy); border-color:var(--navy); color:var(--on-navy)}
+.opt input:focus-visible + span{outline:2px solid var(--accent); outline-offset:2px}
+.opts.parties .opt{flex:1 1 92px}
+.stepper{display:flex; gap:6px}
+.stepper input{text-align:center; font-variant-numeric:tabular-nums}
+.stepper .btn{flex:none; width:48px; padding:0; font-size:1.2rem}
+.hist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.hist li{display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px 10px; padding:8px 10px; background:var(--bg); border-radius:8px; font-size:.9rem}
+
+#toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(86px + env(safe-area-inset-bottom, 0px)); z-index:60; background:var(--fg); color:var(--bg); padding:9px 16px; border-radius:99px; font-size:.9rem; font-weight:500; max-width:calc(100% - 32px); opacity:0; pointer-events:none}
+#toast.on{opacity:1}
+@media (min-width:900px){ #toast{bottom:24px} }
+@media (prefers-reduced-motion:no-preference){ #toast{transition:opacity .2s} }
+</style>
+
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side">
+    <div class="brand" id="brandSide"></div>
+    <nav id="nav" aria-label="Sections"></nav>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="brand brand-m" id="brandTop"></div>
+      <div class="camps" id="camps" role="tablist" aria-label="Campagne d'affiches"></div>
+    </header>
+    <div class="banner" id="banner"></div>
+    <main id="view"></main>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-card" id="sheetBody" role="dialog" aria-modal="true" aria-label="Saisie"></div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- constantes ---------- */
+var CAMPS={ne:'Nouvelle Energie', rm:'#RemueMéninges'};
+var PARTIS=['LFI','RN','PCF','PS','EELV','Renaissance','Horizons','LR','NE','De Villepin','Reconquête','Autre'];
+var SECTIONS=[['tableau','Tableau de bord','dash'],['panneaux','Panneaux','panel'],['tournee','Tournée','route'],['historique','Historique','history']];
+var STATE_ACTIONS={colle:1, ok:1, acontroler:1, decolle:1, recouvert:1};
+var ICONS={
+  dash:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  panel:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 16v5M16 16v5"/>',
+  route:'<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6"/>',
+  history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  poster:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+  eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  check:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+  alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>',
+  redo:'<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>',
+  cover:'<rect x="3" y="3" width="13" height="13" rx="2"/><rect x="8" y="8" width="13" height="13" rx="2"/>',
+  none:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
+  map:'<path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>'
+};
+function icon(n){ return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+ICONS[n]+'</svg>'; }
+var LOGO='<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#ffffff"/><path d="M9 7h10l5 5v13H9z" fill="#0b1f4d"/><path d="M19 7v5h5z" fill="#6f95ff"/><path d="M12 17h8M12 21h5" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/></svg>';
+
+/* ---------- utilitaires ---------- */
+var $=function(s,r){ return (r||document).querySelector(s); };
+var esc=function(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+var uid=function(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36); };
+var plural=function(n,w){ return n+' '+w+(n>1?'s':''); };
+var dtf=new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+var hasCoords=function(p){ return typeof p.lat==='number' && typeof p.lng==='number'; };
+function rel(iso){
+  var ms=Date.now()-new Date(iso).getTime();
+  if(ms<60000) return "à l'instant";
+  var m=Math.floor(ms/60000); if(m<60) return 'il y a '+m+' min';
+  var h=Math.floor(m/60); if(h<24) return 'il y a '+h+' h';
+  var d=Math.floor(h/24); if(d===1) return 'hier'; if(d<60) return 'il y a '+d+' j';
+  return 'il y a '+Math.floor(d/30)+' mois';
+}
+function km(v){ if(v<1) return (Math.round(v*100)*10)+' m'; return v.toFixed(1).replace('.',',')+' km'; }
+function toLocalInput(d){ var p=function(n){return String(n).padStart(2,'0');}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); }
+var toastTimer;
+function toast(msg){ var t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove('on'); },2800); }
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+/* ---------- position ---------- */
+function parseCoords(s){
+  s=(s||'').trim(); if(!s) return {empty:true};
+  try{ s=decodeURIComponent(s); }catch(e){}
+  var m, ok=function(a,b){ a=+a; b=+b; return (isFinite(a)&&isFinite(b)&&Math.abs(a)<=90&&Math.abs(b)<=180)?{lat:+a.toFixed(6),lng:+b.toFixed(6)}:{bad:true}; };
+  if((m=s.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/))) return ok(m[1],m[2]);
+  if((m=s.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/))) return ok(m[1],m[2]);
+  if((m=s.match(/[?&](?:q|ll|query|destination|center)=(-?\d+(?:\.\d+)?)[, ](-?\d+(?:\.\d+)?)/))) return ok(m[1],m[2]);
+  if(/^https?:\/\//i.test(s)) return {short:true};
+  if((m=s.match(/^(-?\d+(?:\.\d+)?)\s*[,;]\s*(-?\d+(?:\.\d+)?)$/))) return ok(m[1],m[2]);
+  if((m=s.match(/^(-?\d+,\d+)\s*[;\s]\s*(-?\d+,\d+)$/))) return ok(m[1].replace(',','.'),m[2].replace(',','.'));
+  if((m=s.match(/^(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)$/))) return ok(m[1],m[2]);
+  return {bad:true};
+}
+function posFeedback(v){
+  var r=parseCoords(v);
+  if(r.empty) return '';
+  if(r.short) return "Ce lien raccourci ne contient pas les coordonnées. Ouvre-le dans Maps, appuie longuement sur le point et copie les coordonnées.";
+  if(r.bad) return 'Format non reconnu. Exemple : 44.5012, 0.1693';
+  return 'Position reconnue : '+r.lat+', '+r.lng;
+}
+
+/* ---------- état ---------- */
+var S={
+  camp:'ne', tab:'tableau', panels:[], inter:[], idx:{}, settings:{seuil:14,mode:'driving'},
+  loadedP:false, loadedI:false, slow:false, error:null, noDb:false, canWrite:true,
+  me:{id:null,name:''}, names:{}, filter:'todo', q:'', hf:{camp:'cur',who:'',q:''}, histLimit:60,
+  tours:{}, tourOpts:{start:'auto',scope:'todo',max:0}, sheet:null, confirm:null
+};
+var TABS=SECTIONS.map(function(s){return s[0];});
+var db=null, userNS=null;
+
+function reindex(){
+  var idx={};
+  S.inter.forEach(function(e){ (idx[e.panelId]||(idx[e.panelId]=[])).push(e); });
+  Object.keys(idx).forEach(function(k){ idx[k].sort(function(a,b){ return (new Date(a.at)-new Date(b.at)) || String(a.rec||'').localeCompare(String(b.rec||'')); }); });
+  S.idx=idx;
+}
+function nameOf(e){ return S.names[e.auteurId]||e.auteurNom||'Membre'; }
+function initials(n){ var p=String(n).trim().split(/\s+/); return ((p[0]||'?')[0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase(); }
+
+/* ---------- statut d'un panneau, par campagne ---------- */
+function info(p,camp){
+  camp=camp||S.camp;
+  var all=(S.idx[p.id]||[]).filter(function(e){ return e.campagne===camp && STATE_ACTIONS[e.action]; });
+  var colls=all.filter(function(e){return e.action==='colle';});
+  var last=all[all.length-1]||null, lastColl=colls[colls.length-1]||null;
+  var total=colls.reduce(function(s,e){return s+(+e.n||0);},0);
+  var status='jamais';
+  if(lastColl){
+    if(last.action==='decolle'||last.action==='recouvert') status='arecoller';
+    else if(last.action==='acontroler') status='acontroler';
+    else status=((Date.now()-new Date(last.at))/86400000>S.settings.seuil)?'acontroler':'conforme';
+  }
+  return {last:last,lastColl:lastColl,total:total,status:status,recouvert:status==='arecoller'&&last.action==='recouvert'};
+}
+var RANK={arecoller:3,jamais:2,acontroler:1,conforme:0};
+function prio(c){ var days=c.i.last?(Date.now()-new Date(c.i.last.at))/86400000:0; return RANK[c.i.status]*1000+Math.min(days,900); }
+function pill(i){
+  var l,c;
+  if(i.status==='jamais'){l='Jamais utilisé';c='none';}
+  else if(i.status==='arecoller'){l=i.recouvert?('Recouvert'+(i.last.parti?' par '+i.last.parti:'')):'Décollé';c='bad';}
+  else if(i.status==='acontroler'){l='À contrôler';c='warn';}
+  else{l='Conforme';c='ok';}
+  return '<span class="pill '+c+'">'+esc(l)+'</span>';
+}
+function reason(i){
+  if(i.status==='jamais') return 'Aucune affiche collée';
+  if(i.status==='arecoller') return (i.recouvert?'Recouvert':'Décollé')+' '+rel(i.last.at)+', à recoller';
+  if(i.status==='acontroler') return 'Dernier passage '+rel(i.last.at);
+  return 'Conforme, dernier passage '+rel(i.last.at);
+}
+function actLabel(e){
+  switch(e.action){
+    case 'colle': return plural(+e.n||0,'affiche')+' collée'+((+e.n||0)>1?'s':'');
+    case 'ok': return 'Panneau conforme';
+    case 'acontroler': return 'Panneau à contrôler';
+    case 'decolle': return 'Affiches décollées';
+    case 'recouvert': return 'Affiches recouvertes'+(e.parti?' par '+e.parti:'');
+    case 'creation': return 'Panneau ajouté';
+    case 'modif': return 'Panneau modifié';
+    case 'suppression': return 'Panneau supprimé';
+  } return e.action;
+}
+function actClass(a){ return {colle:'info',ok:'ok',acontroler:'warn',decolle:'bad',recouvert:'bad',creation:'none',modif:'none',suppression:'none'}[a]||'none'; }
+
+/* ---------- stockage ---------- */
+var queues=new Map();
+function enqueue(key,fn){ var prev=queues.get(key)||Promise.resolve(); var next=prev.catch(function(){}).then(fn); queues.set(key,next.catch(function(){})); return next; }
+function fail(e){ toast('Enregistrement impossible'+(e&&e.code?' ('+e.code+')':'')); }
+function savePanel(p){
+  var body={}; Object.keys(p).forEach(function(k){ if(k!=='id'&&p[k]!==undefined) body[k]=p[k]; });
+  return enqueue(p.id,function(){ return db.collection('panneaux').doc(p.id).set(body); });
+}
+function logEvent(o){
+  var now=new Date().toISOString();
+  var e=Object.assign({campagne:S.camp,at:now,rec:now,auteurId:S.me.id||null,auteurNom:S.me.name||'',note:''},o);
+  Object.keys(e).forEach(function(k){ if(e[k]===undefined) delete e[k]; });
+  return db.collection('interventions').doc(uid()).set(e);
+}
+function saveSettings(){ return enqueue('settings',function(){ return db.doc('reglages/main').set({seuil:S.settings.seuil,mode:S.settings.mode}); }); }
+
+async function init(){
+  var c=lsGet('tournez-camp'); if(c&&CAMPS[c]) S.camp=c;
+  try{ S.tours=JSON.parse(lsGet('tournez-tours')||'{}')||{}; }catch(e){ S.tours={}; }
+  render();
+  try{ db=(window.claude&&window.claude.use)?await window.claude.use('db'):null; }catch(e){ db=null; }
+  try{ userNS=(window.claude&&window.claude.use)?await window.claude.use('user'):null; }catch(e){ userNS=null; }
+  if(!db){ S.noDb=true; S.loadedP=S.loadedI=true; render(); return; }
+  if(userNS){
+    try{ var me=await userNS.me(); S.me={id:me.id||null,name:me.name||''}; if(S.me.id&&S.me.name) S.names[S.me.id]=S.me.name; }catch(e){}
+    try{ var cw=await userNS.can('data.write'); S.canWrite=(cw!==false); }catch(e){}
+  }
+  var t=setTimeout(function(){ if(!(S.loadedP&&S.loadedI)){ S.slow=true; render(); } },10000);
+  var done=function(){ if(S.loadedP&&S.loadedI){ clearTimeout(t); S.slow=false; } };
+  db.collection('panneaux').onSnapshot(function(snap){
+    S.panels=snap.docs.map(function(d){ return Object.assign({},d.data(),{id:d.id}); });
+    S.loadedP=true; done(); render();
+  },function(err){ S.error=err.code; S.loadedP=true; done(); render(); });
+  db.collection('interventions').onSnapshot(function(snap){
+    S.inter=snap.docs.map(function(d){ return Object.assign({},d.data(),{id:d.id}); });
+    reindex(); S.loadedI=true; done(); render();
+  },function(err){ S.error=err.code; S.loadedI=true; done(); render(); });
+  db.doc('reglages/main').onSnapshot(function(s){
+    if(s.exists){ var d=s.data(); S.settings=Object.assign({},S.settings,{seuil:d.seuil||S.settings.seuil,mode:d.mode||S.settings.mode}); render(); }
+  },function(){});
+}
+async function resolveNames(){
+  if(!userNS) return;
+  var ids=[]; S.inter.forEach(function(e){ if(e.auteurId && !(e.auteurId in S.names) && ids.indexOf(e.auteurId)<0) ids.push(e.auteurId); });
+  if(!ids.length) return;
+  ids.forEach(function(id){ S.names[id]=''; });
+  try{ var ps=await userNS.profiles(ids); ids.forEach(function(id){ S.names[id]=(ps[id]&&ps[id].name)||''; }); }catch(e){}
+  render(true);
+}
+
+/* ---------- tournée : calcul ---------- */
+function dist(a,b){
+  var R=6371,t=function(x){return x*Math.PI/180;};
+  var dLa=t(b.lat-a.lat),dLo=t(b.lng-a.lng);
+  var h=Math.pow(Math.sin(dLa/2),2)+Math.cos(t(a.lat))*Math.cos(t(b.lat))*Math.pow(Math.sin(dLo/2),2);
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function orderRoute(pts){
+  var n=pts.length; if(n<3) return pts.slice();
+  var rest=pts.slice(1),path=[pts[0]];
+  while(rest.length){
+    var last=path[path.length-1],bi=0,bd=Infinity;
+    for(var k=0;k<rest.length;k++){ var d=dist(last,rest[k]); if(d<bd){bd=d;bi=k;} }
+    path.push(rest.splice(bi,1)[0]);
+  }
+  var improved=true,guard=0;
+  while(improved&&guard++<100){
+    improved=false;
+    for(var i=1;i<n-1;i++){ for(var j=i+1;j<n;j++){
+      var a=path[i-1],b=path[i],c=path[j],d2=path[j+1];
+      var before=dist(a,b)+(d2?dist(c,d2):0),after=dist(a,c)+(d2?dist(b,d2):0);
+      if(after<before-1e-9){ var seg=path.slice(i,j+1).reverse(); Array.prototype.splice.apply(path,[i,j-i+1].concat(seg)); improved=true; }
+    } }
+  }
+  return path;
+}
+function buildTour(){
+  var o=S.tourOpts;
+  var c=S.panels.map(function(p){return {p:p,i:info(p)};});
+  if(o.scope==='todo') c=c.filter(function(x){return x.i.status!=='conforme';});
+  c.sort(function(a,b){return prio(b)-prio(a);});
+  if(o.max>0) c=c.slice(0,o.max);
+  var located=c.map(function(x){return x.p;}).filter(hasCoords);
+  var unlocated=c.map(function(x){return x.p;}).filter(function(p){return !hasCoords(p);});
+  var pts=located.map(function(p){return {id:p.id,lat:p.lat,lng:p.lng};}),originId=null;
+  if(pts.length){
+    if(o.start!=='auto'){
+      var sp=S.panels.find(function(p){return p.id===o.start;});
+      var k=pts.findIndex(function(q){return q.id===o.start;});
+      if(k>=0){ var s=pts.splice(k,1)[0]; pts.unshift(s); }
+      else if(sp&&hasCoords(sp)){ pts.unshift({id:sp.id,lat:sp.lat,lng:sp.lng,virtual:true}); originId=sp.id; }
+    }
+    pts=orderRoute(pts);
+  }
+  var ids=pts.filter(function(q){return !q.virtual;}).map(function(q){return q.id;}).concat(unlocated.map(function(p){return p.id;}));
+  S.tours[S.camp]={ids:ids,originId:originId,at:Date.now()};
+  lsSet('tournez-tours',JSON.stringify(S.tours));
+}
+function locOf(p){ return hasCoords(p)?(p.lat+','+p.lng):String(p.adresse||'').trim(); }
+function mapsLinks(stops,origin){
+  var pts=[]; if(origin) pts.push(locOf(origin)); stops.forEach(function(p){pts.push(locOf(p));});
+  pts=pts.filter(Boolean);
+  var base='https://www.google.com/maps/dir/?api=1&travelmode='+(S.settings.mode||'driving');
+  if(pts.length<1) return [];
+  if(pts.length===1) return [base+'&destination='+encodeURIComponent(pts[0])];
+  var out=[],i=0;
+  while(i<pts.length-1){
+    var end=Math.min(i+9,pts.length-1),seg=pts.slice(i,end+1);
+    var url=base+'&origin='+encodeURIComponent(seg[0])+'&destination='+encodeURIComponent(seg[seg.length-1]);
+    if(seg.length>2) url+='&waypoints='+seg.slice(1,-1).map(encodeURIComponent).join('%7C');
+    out.push(url); i=end;
+  }
+  return out;
+}
+function mapsOpen(p){ var q=locOf(p); return q?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q):''; }
+function mapsSearchUrl(nom,adr){ var q=((adr||'')||(nom||'')).trim(); return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q||"panneau d'affichage libre"); }
+
+/* ---------- statistiques ---------- */
+function stats(){
+  var s={panneaux:S.panels.length,affiches:0,conforme:0,acontroler:0,arecoller:0,recouvert:0,jamais:0};
+  S.panels.forEach(function(p){ var i=info(p); s.affiches+=i.total; s[i.status]++; if(i.recouvert) s.recouvert++; });
+  return s;
+}
+function weekly(){
+  var d=new Date(),day=(d.getDay()+6)%7,b=[];
+  for(var k=7;k>=-1;k--) b.push(new Date(d.getFullYear(),d.getMonth(),d.getDate()-day-7*k));
+  var vals=[0,0,0,0,0,0,0,0];
+  S.inter.forEach(function(e){
+    if(e.campagne!==S.camp||e.action!=='colle') return;
+    var t=new Date(e.at); for(var i=0;i<8;i++){ if(t>=b[i]&&t<b[i+1]){ vals[i]+=(+e.n||0); break; } }
+  });
+  return b.slice(0,8).map(function(x,i){ return {label:x.getDate()+'/'+(x.getMonth()+1),v:vals[i]}; });
+}
+function weeklySvg(w){
+  var max=Math.max.apply(null,w.map(function(x){return x.v;}).concat([1])),out='<svg class="wk" viewBox="0 0 360 150" role="img" aria-label="Affiches collées par semaine">';
+  out+='<line class="base" x1="8" y1="118" x2="352" y2="118"/>';
+  w.forEach(function(x,i){
+    var h=Math.round(x.v/max*84),bx=19+i*42;
+    if(x.v>0) out+='<rect class="bar" x="'+bx+'" y="'+(118-h)+'" width="28" height="'+h+'" rx="4"/><text class="v" x="'+(bx+14)+'" y="'+(112-h)+'">'+x.v+'</text>';
+    out+='<text x="'+(bx+14)+'" y="136">'+esc(x.label)+'</text>';
+  });
+  return out+'</svg>';
+}
+function hbars(items,empty){
+  if(!items.length) return '<p class="muted" style="margin:0">'+empty+'</p>';
+  var max=Math.max.apply(null,items.map(function(x){return x.v;}));
+  return '<div class="bars">'+items.map(function(x){ return '<div class="hb"><span>'+esc(x.l)+'</span><span class="t"><span class="f" style="width:'+Math.max(4,Math.round(x.v/max*100))+'%"></span></span><b>'+x.v+'</b></div>'; }).join('')+'</div>';
+}
+
+/* ---------- vues ---------- */
+function w(h){ return S.canWrite?h:''; }
+function emptyState(){
+  return '<div class="empty"><h2>Aucun panneau pour l\'instant</h2><p>Ajoute chaque panneau d\'affichage libre où vous collez, avec son adresse et, pour calculer un ordre de passage, sa position. Les deux campagnes partagent les mêmes panneaux.</p>'
+   +w('<div class="row"><button type="button" class="btn primary" data-act="add-panel">'+icon('plus')+'Ajouter un panneau</button></div>')+'</div>';
+}
+function viewTableau(){
+  if(!S.panels.length) return emptyState();
+  var s=stats(), tile=function(c,ic,l,n){ return '<div class="tile '+c+'"><span class="ti">'+icon(ic)+l+'</span><b>'+n+'</b></div>'; };
+  var tiles='<section class="tiles" aria-label="Chiffres clés">'
+    +tile('info','panel','Panneaux recensés',s.panneaux)+tile('info','poster','Affiches collées',s.affiches)
+    +tile('ok','check','Panneaux conformes',s.conforme)+tile('warn','eye','À contrôler',s.acontroler)
+    +tile('bad','redo','À recoller',s.arecoller)+tile('bad','cover','Affiches recouvertes',s.recouvert)+tile('none','none','Jamais utilisés',s.jamais)+'</section>';
+  var tot=Math.max(1,s.panneaux),seg=function(c,n){ return n?'<span class="seg-'+c+'" style="width:'+(n/tot*100)+'%"></span>':''; };
+  var lg=function(c,l,n){ return '<li><i class="seg-'+c+'"></i>'+l+'<b>'+n+'</b></li>'; };
+  var state='<div class="panel"><h3>État des panneaux</h3><div class="stack" role="img" aria-label="Répartition des panneaux par état">'+seg('ok',s.conforme)+seg('warn',s.acontroler)+seg('bad',s.arecoller)+seg('none',s.jamais)+'</div>'
+    +'<ul class="legend">'+lg('ok','Conformes',s.conforme)+lg('warn','À contrôler',s.acontroler)+lg('bad','À recoller',s.arecoller)+lg('none','Jamais utilisés',s.jamais)+'</ul>'
+    +'<p class="hint" style="margin:0">Parmi les panneaux à recoller, '+s.recouvert+(s.recouvert>1?' ont':' a')+' des affiches recouvertes.</p></div>';
+  var wk='<div class="panel"><h3>Affiches collées par semaine</h3>'+weeklySvg(weekly())+'</div>';
+  var pc={}; S.inter.forEach(function(e){ if(e.campagne===S.camp&&e.action==='recouvert'&&e.parti) pc[e.parti]=(pc[e.parti]||0)+1; });
+  var parties=Object.keys(pc).map(function(k){return {l:k,v:pc[k]};}).sort(function(a,b){return b.v-a.v;});
+  var cov='<div class="panel"><h3>Recouvrements par parti</h3>'+hbars(parties,'Aucun recouvrement signalé pour cette campagne.')+'</div>';
+  var pp={}; S.inter.forEach(function(e){ if(e.campagne===S.camp&&STATE_ACTIONS[e.action]){ var n=nameOf(e); pp[n]=(pp[n]||0)+1; } });
+  var people=Object.keys(pp).map(function(k){return {l:k,v:pp[k]};}).sort(function(a,b){return b.v-a.v;});
+  var per='<div class="panel"><h3>Interventions par personne</h3>'+hbars(people,'Aucune intervention enregistrée.')+'</div>';
+  var recent=S.inter.filter(function(e){return !e.campagne||e.campagne===S.camp;}).sort(function(a,b){return new Date(b.at)-new Date(a.at);}).slice(0,6);
+  var rec='<div class="panel"><h3>Dernières interventions</h3>'+(recent.length?feed(recent):'<p class="muted" style="margin:0">Rien pour l\'instant.</p>')+'</div>';
+  return tiles+'<div class="charts">'+state+wk+cov+per+'</div>'+rec;
+}
+function feed(list){
+  return '<ul class="feed">'+list.map(function(e){
+    var who=nameOf(e), p=S.panels.find(function(x){return x.id===e.panelId;}), nom=e.panelNom||(p&&p.nom)||'Panneau';
+    return '<li><span class="av" aria-hidden="true">'+esc(initials(who))+'</span><div><div class="who">'+esc(who)+'</div>'
+      +'<div class="what"><span class="pill '+actClass(e.action)+'">'+esc(actLabel(e))+'</span><span>'+esc(nom)+'</span>'+(e.campagne?'<span class="muted">· '+esc(CAMPS[e.campagne]||'')+'</span>':'')+'</div>'
+      +(e.note?'<div class="meta">'+esc(e.note)+'</div>':'')+'</div>'
+      +'<span class="when">'+dtf.format(new Date(e.at))+'<br>'+rel(e.at)+'</span></li>';
+  }).join('')+'</ul>';
+}
+function viewPanneaux(){
+  if(!S.panels.length) return emptyState();
+  var items=S.panels.map(function(p){return {p:p,i:info(p)};});
+  var cnt={all:items.length,todo:0,conforme:0,jamais:0};
+  items.forEach(function(x){ if(x.i.status!=='conforme') cnt.todo++; else cnt.conforme++; if(x.i.status==='jamais') cnt.jamais++; });
+  var q=S.q.trim().toLowerCase();
+  var shown=items.filter(function(x){
+    if(S.filter==='todo'&&x.i.status==='conforme') return false;
+    if(S.filter==='conforme'&&x.i.status!=='conforme') return false;
+    if(S.filter==='jamais'&&x.i.status!=='jamais') return false;
+    return !q||(x.p.nom+' '+(x.p.adresse||'')).toLowerCase().indexOf(q)>=0;
+  }).sort(function(a,b){ return prio(b)-prio(a)||a.p.nom.localeCompare(b.p.nom,'fr'); });
+  var chip=function(k,l,n){ return '<button type="button" class="chip" data-act="filter" data-f="'+k+'" aria-pressed="'+(S.filter===k)+'">'+l+' ('+n+')</button>'; };
+  var cards=shown.map(function(x){
+    var p=x.p,i=x.i,l1=i.lastColl?'Dernier collage '+rel(i.lastColl.at)+', '+plural(+i.lastColl.n||0,'affiche'):'Aucun collage';
+    return '<li class="card"><button type="button" class="card-main" data-act="detail" data-id="'+p.id+'">'
+      +'<span class="card-title"><span class="name">'+esc(p.nom)+'</span>'+pill(i)+'</span>'
+      +(p.adresse?'<span class="addr">'+esc(p.adresse)+'</span>':'')+'<span class="meta">'+esc(l1)+'</span></button>'
+      +w('<div class="card-actions"><button type="button" class="btn small primary" data-act="log-colle" data-id="'+p.id+'">'+icon('poster')+'Collé</button><button type="button" class="btn small" data-act="log-constat" data-id="'+p.id+'">'+icon('eye')+'Constat</button></div>')+'</li>';
+  }).join('');
+  return '<div class="pagehead"><h2>Panneaux · '+esc(CAMPS[S.camp])+'</h2></div>'
+    +'<div class="panel" style="gap:10px"><div class="toolbar"><input id="q" type="search" placeholder="Rechercher un panneau" aria-label="Rechercher un panneau" value="'+esc(S.q)+'">'
+    +w('<button type="button" class="btn primary" data-act="add-panel">'+icon('plus')+'Ajouter</button>')+'</div>'
+    +'<div class="chips">'+chip('todo','À faire',cnt.todo)+chip('all','Tous',cnt.all)+chip('conforme','Conformes',cnt.conforme)+chip('jamais','Jamais utilisés',cnt.jamais)+'</div></div>'
+    +(shown.length?'<ul class="list">'+cards+'</ul>':'<div class="empty"><p>Aucun panneau ne correspond. Change le filtre ou la recherche.</p></div>');
+}
+function viewTournee(){
+  if(!S.panels.length) return emptyState();
+  var o=S.tourOpts,tour=S.tours[S.camp];
+  var withC=S.panels.filter(hasCoords).sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});
+  var opt=function(v,l,cur){ return '<option value="'+esc(v)+'"'+(String(cur)===String(v)?' selected':'')+'>'+esc(l)+'</option>'; };
+  var ctrl='<div class="panel"><h3>Préparer la tournée</h3><div class="grid2">'
+    +'<div class="field"><label for="o-start">Départ</label><select id="o-start" data-opt="start">'+opt('auto','Le plus urgent',o.start)+withC.map(function(p){return opt(p.id,'Près de : '+p.nom,o.start);}).join('')+'</select></div>'
+    +'<div class="field"><label for="o-scope">Panneaux</label><select id="o-scope" data-opt="scope">'+opt('todo','À faire seulement',o.scope)+opt('all','Tous',o.scope)+'</select></div>'
+    +'<div class="field"><label for="o-max">Arrêts maximum</label><select id="o-max" data-opt="max">'+opt(0,'Sans limite',o.max)+[5,10,15,20,30].map(function(n){return opt(n,String(n),o.max);}).join('')+'</select></div>'
+    +'<div class="field"><label for="o-mode">Déplacement</label><select id="o-mode" data-opt="mode">'+opt('driving','Voiture',S.settings.mode)+opt('walking','À pied',S.settings.mode)+opt('bicycling','Vélo',S.settings.mode)+opt('transit','Transports',S.settings.mode)+'</select></div>'
+    +'<div class="field"><label for="o-seuil">À contrôler après (jours)</label><input id="o-seuil" type="number" inputmode="numeric" min="1" max="365" value="'+S.settings.seuil+'" data-opt="seuil"></div></div>'
+    +'<div class="row"><button type="button" class="btn primary" data-act="tour-build">'+icon('route')+'Calculer la tournée</button></div>'
+    +'<p class="hint">Le départ « le plus urgent » commence par le panneau à recoller ou jamais utilisé depuis le plus longtemps, puis enchaîne au plus près. Les panneaux sans position passent en dernier.</p></div>';
+  if(!tour) return '<div class="pagehead"><h2>Tournée · '+esc(CAMPS[S.camp])+'</h2></div>'+ctrl;
+  var byId={}; S.panels.forEach(function(p){byId[p.id]=p;});
+  var stops=tour.ids.map(function(id){return byId[id];}).filter(Boolean),origin=tour.originId?byId[tour.originId]:null;
+  var head='<div class="pagehead"><h2>Tournée · '+esc(CAMPS[S.camp])+'</h2></div>';
+  if(!stops.length) return head+ctrl+'<div class="empty"><p>Aucun panneau à visiter avec ces réglages. Tout est conforme.</p></div>';
+  var prev=origin&&hasCoords(origin)?origin:null,total=0,doneN=0;
+  var lis=stops.map(function(p,idx){
+    var i=info(p),leg='';
+    if(hasCoords(p)){ if(prev){ var d=dist(prev,p); total+=d; leg='+ '+km(d); } prev=p; }
+    var done=(S.idx[p.id]||[]).some(function(e){ return e.campagne===S.camp&&e.action==='colle'&&e.rec&&new Date(e.rec).getTime()>=tour.at; });
+    if(done) doneN++;
+    return '<li class="stop'+(done?' done':'')+'"><span class="num">'+(done?'✓':(idx+1))+'</span><div class="stop-main"><span class="card-title"><span class="name">'+esc(p.nom)+'</span>'+pill(i)+'</span>'
+      +(p.adresse?'<span class="addr">'+esc(p.adresse)+'</span>':'')+(!hasCoords(p)?'<span class="addr">Position inconnue'+(p.adresse?'':', adresse manquante')+'</span>':'')+'<span class="meta">'+esc(reason(i))+'</span></div>'
+      +'<div class="stop-side">'+(leg?'<span class="leg">'+leg+'</span>':'')+w('<button type="button" class="btn small primary" data-act="log-colle" data-id="'+p.id+'">'+(done?'Re-coller':'Collé')+'</button>')+'</div></li>';
+  }).join('');
+  var links=mapsLinks(stops.filter(function(p){return locOf(p);}),origin);
+  var linkHtml=links.map(function(u,k){ return '<a class="btn" target="_blank" rel="noopener" href="'+esc(u)+'">'+icon('map')+(links.length>1?'Itinéraire, partie '+(k+1)+'/'+links.length:"Ouvrir l'itinéraire dans Google Maps")+'</a>'; }).join('');
+  return head+ctrl+'<div class="pagehead"><h3>'+plural(stops.length,'arrêt')+(total>0?' · '+km(total)+" à vol d'oiseau":'')+'</h3><span class="muted">'+doneN+' sur '+stops.length+' collés</span></div>'
+    +(origin?'<p class="hint" style="margin:0">Départ près de « '+esc(origin.nom)+' ».</p>':'')+'<ol class="stops">'+lis+'</ol><div class="links">'+linkHtml+'</div>'
+    +'<p class="hint">Google Maps calcule le trajet routier réel. L\'ordre vient de l\'app. Les distances affichées sont en ligne droite.</p>';
+}
+function viewHistorique(){
+  var f=S.hf,q=f.q.trim().toLowerCase();
+  var all=S.inter.filter(function(e){
+    if(f.camp==='cur'&&e.campagne&&e.campagne!==S.camp) return false;
+    if(f.who&&nameOf(e)!==f.who) return false;
+    if(q){ var p=S.panels.find(function(x){return x.id===e.panelId;}); if(((e.panelNom||(p&&p.nom)||'')+' '+actLabel(e)).toLowerCase().indexOf(q)<0) return false; }
+    return true;
+  }).sort(function(a,b){return new Date(b.at)-new Date(a.at);});
+  var names=[]; S.inter.forEach(function(e){ var n=nameOf(e); if(names.indexOf(n)<0) names.push(n); }); names.sort(function(a,b){return a.localeCompare(b,'fr');});
+  var opt=function(v,l,cur){ return '<option value="'+esc(v)+'"'+(cur===v?' selected':'')+'>'+esc(l)+'</option>'; };
+  var filters='<div class="panel"><div class="filters">'
+    +'<div class="field"><label for="h-camp">Campagne</label><select id="h-camp" data-hf="camp">'+opt('cur',CAMPS[S.camp],f.camp)+opt('all','Les deux campagnes',f.camp)+'</select></div>'
+    +'<div class="field"><label for="h-who">Personne</label><select id="h-who" data-hf="who">'+opt('','Tout le monde',f.who)+names.map(function(n){return opt(n,n,f.who);}).join('')+'</select></div>'
+    +'<div class="field"><label for="h-q">Panneau ou action</label><input id="h-q" type="search" data-hf="q" value="'+esc(f.q)+'" placeholder="Rechercher"></div></div></div>';
+  if(!all.length) return '<div class="pagehead"><h2>Historique</h2></div>'+filters+'<div class="empty"><p>Aucune intervention ne correspond. Chaque action notée apparaît ici avec son auteur, la date et le panneau.</p></div>';
+  var shown=all.slice(0,S.histLimit);
+  return '<div class="pagehead"><h2>Historique</h2><span class="muted">'+plural(all.length,'intervention')+'</span></div>'+filters
+    +'<div class="panel">'+feed(shown)+(all.length>shown.length?'<button type="button" class="btn" data-act="hist-more">Voir plus ('+(all.length-shown.length)+')</button>':'')+'</div>';
+}
+
+/* ---------- rendu ---------- */
+function renderChrome(){
+  $('#brandSide').innerHTML=LOGO+'<span>Tournez l\'affichage</span>';
+  $('#brandTop').innerHTML=LOGO+'<span>Tournez l\'affichage</span>';
+  $('#nav').innerHTML=SECTIONS.map(function(s){ return '<button type="button" data-act="tab" data-tab="'+s[0]+'"'+(S.tab===s[0]?' aria-current="page"':'')+'>'+icon(s[2])+'<span>'+s[1]+'</span></button>'; }).join('');
+  $('#camps').innerHTML=Object.keys(CAMPS).map(function(k){
+    var todo=S.panels.filter(function(p){return info(p,k).status!=='conforme';}).length;
+    return '<button type="button" role="tab" data-act="camp" data-camp="'+k+'" aria-selected="'+(S.camp===k)+'">'+esc(CAMPS[k])+'<small>'+(S.panels.length?todo+' à faire':'&nbsp;')+'</small></button>';
+  }).join('');
+}
+function renderBanner(){
+  var p=[],authors={}; S.inter.forEach(function(e){ if(e.auteurId) authors[e.auteurId]=1; });
+  if(S.error) p.push('Lecture impossible ('+esc(S.error)+'). Recharge la page.');
+  if(S.slow) p.push('Les données mettent du temps à arriver. Ce qui est affiché peut être en retard.');
+  if(!S.canWrite) p.push('Tu as un accès en lecture seule. Demande à l\'administrateur de te passer en contributeur.');
+  if(userNS&&!S.me.id&&!S.noDb) p.push('Ton identité n\'est pas disponible : tes actions seront signées « Membre ».');
+  if(Object.keys(authors).length>3) p.push('Plus de trois personnes ont saisi des données. Vérifie le partage de l\'application.');
+  $('#banner').innerHTML=p.map(function(t){return '<div class="note">'+t+'</div>';}).join('');
+}
+function render(keepFocus){
+  renderChrome(); renderBanner();
+  var v=$('#view');
+  if(S.noDb){ v.innerHTML='<div class="empty"><h2>Accès privé</h2><p>Cette application est réservée aux trois membres invités par l\'administrateur. Ouvre-la depuis ton compte Claude pour voir et modifier les panneaux.</p></div>'; return; }
+  if(!(S.loadedP&&S.loadedI)){ v.innerHTML='<div class="empty"><p>Chargement des panneaux…</p></div>'; return; }
+  var ae=document.activeElement,aid=ae&&ae.id&&/^(q|h-q)$/.test(ae.id)?ae.id:null,pos=aid?ae.selectionStart:0;
+  v.innerHTML=S.tab==='tournee'?viewTournee():S.tab==='historique'?viewHistorique():S.tab==='panneaux'?viewPanneaux():viewTableau();
+  if(aid){ var n=document.getElementById(aid); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} } }
+  if(S.sheet&&S.sheet.mode==='detail') renderSheet();
+  if(!keepFocus) resolveNames();
+}
+
+/* ---------- feuilles de saisie ---------- */
+function sheetLog(sh){
+  var p=S.panels.find(function(x){return x.id===sh.id;}); if(!p) return '';
+  var i=info(p),n=(i.lastColl&&+i.lastColl.n)||1,isC=sh.kind==='colle';
+  var etat=function(v,l,c){ return '<label class="opt"><input type="radio" name="etat" value="'+v+'"'+(c?' checked':'')+'><span>'+l+'</span></label>'; };
+  return '<div><h2>'+esc(p.nom)+'</h2><p class="meta" style="margin:2px 0 0">'+esc(CAMPS[S.camp])+(S.me.name?' · saisie au nom de '+esc(S.me.name):'')+'</p></div>'
+   +'<form id="logForm" data-id="'+p.id+'" novalidate><div class="opts" role="radiogroup" aria-label="Type de saisie">'
+   +'<label class="opt"><input type="radio" name="kind" value="colle"'+(isC?' checked':'')+'><span>Collage</span></label>'
+   +'<label class="opt"><input type="radio" name="kind" value="constat"'+(!isC?' checked':'')+'><span>Constat</span></label></div>'
+   +'<div id="g-colle" class="field" style="margin-top:14px"'+(isC?'':' hidden')+'><label for="f-n">Affiches collées</label><div class="stepper"><button type="button" class="btn" data-act="step" data-d="-1" aria-label="Moins une affiche">−</button>'
+   +'<input id="f-n" name="n" type="number" inputmode="numeric" min="1" value="'+n+'"><button type="button" class="btn" data-act="step" data-d="1" aria-label="Plus une affiche">+</button></div></div>'
+   +'<fieldset id="g-constat" style="margin-top:14px"'+(!isC?'':' hidden')+'><legend>État constaté</legend><div class="opts">'
+   +etat('ok','Conforme',true)+etat('acontroler','À contrôler',false)+etat('decolle','Décollé',false)+etat('recouvert','Recouvert',false)+'</div>'
+   +'<div id="g-parti" style="margin-top:12px" hidden><legend>Recouvert par</legend><div class="opts parties" role="radiogroup" aria-label="Parti">'
+   +PARTIS.map(function(x){ return '<label class="opt"><input type="radio" name="parti" value="'+esc(x)+'"><span>'+esc(x)+'</span></label>'; }).join('')+'</div></div>'
+   +'<p class="hint">Décollé et recouvert marquent le panneau « à recoller ».</p></fieldset>'
+   +'<div class="field" style="margin-top:14px"><label for="f-at">Date et heure</label><input id="f-at" name="at" type="datetime-local" value="'+toLocalInput(new Date())+'"></div>'
+   +'<div class="field" style="margin-top:12px"><label for="f-note">Note (facultatif)</label><input id="f-note" name="note" type="text" maxlength="200"></div>'
+   +'<p class="err" id="formErr" role="alert"></p>'
+   +'<div class="row" style="margin-top:14px"><button type="submit" class="btn primary">Enregistrer</button><button type="button" class="btn" data-act="close-sheet">Annuler</button></div></form>';
+}
+function sheetForm(sh){
+  var p=sh.id?S.panels.find(function(x){return x.id===sh.id;}):null,posVal=p&&hasCoords(p)?(p.lat+', '+p.lng):'';
+  return '<h2>'+(p?'Modifier le panneau':'Nouveau panneau')+'</h2><form id="panelForm" data-id="'+(p?p.id:'')+'" novalidate>'
+   +'<div class="field"><label for="p-nom">Nom du panneau</label><input id="p-nom" name="nom" type="text" maxlength="80" placeholder="Ex. Place de la mairie" value="'+esc(p?p.nom:'')+'"></div>'
+   +'<div class="field" style="margin-top:12px"><label for="p-adr">Adresse</label><input id="p-adr" name="adresse" type="text" maxlength="160" placeholder="Rue, numéro, ville" value="'+esc(p?p.adresse||'':'')+'"></div>'
+   +'<div class="field" style="margin-top:12px"><label for="p-pos">Position (coordonnées ou lien Google Maps)</label><input id="p-pos" name="pos" type="text" placeholder="44.5012, 0.1693" value="'+esc(posVal)+'" autocomplete="off">'
+   +'<p class="hint" id="posFb" aria-live="polite">'+esc(posFeedback(posVal))+'</p>'
+   +'<p class="hint">Dans Google Maps, appuie longuement sur l\'emplacement du panneau, puis copie les coordonnées ou le lien de partage. <a id="posLink" target="_blank" rel="noopener" href="'+esc(mapsSearchUrl(p?p.nom:'',p?p.adresse:''))+'">Chercher dans Google Maps</a></p></div>'
+   +'<div class="field" style="margin-top:12px"><label for="p-note">Note (facultatif)</label><input id="p-note" name="note" type="text" maxlength="200" placeholder="Ex. côté parking, panneau de gauche" value="'+esc(p?p.note||'':'')+'"></div>'
+   +'<p class="err" id="formErr" role="alert"></p><div class="row" style="margin-top:14px"><button type="submit" class="btn primary">Enregistrer</button><button type="button" class="btn" data-act="close-sheet">Annuler</button></div></form>';
+}
+function sheetDetail(sh){
+  var p=S.panels.find(function(x){return x.id===sh.id;});
+  if(!p) return '<p>Ce panneau n\'existe plus.</p><button type="button" class="btn" data-act="close-sheet">Fermer</button>';
+  var i=info(p),c=S.confirm,mo=mapsOpen(p),askP=c&&c.type==='panel'&&c.id===p.id;
+  var evs=(S.idx[p.id]||[]).slice().reverse().map(function(e){
+    return '<li><span><b>'+esc(actLabel(e))+'</b> <span class="muted">· '+esc(CAMPS[e.campagne]||'Panneau')+'</span>'+(e.note?'<br><span class="muted">'+esc(e.note)+'</span>':'')+'<br><span class="when" style="text-align:left;display:inline">'+esc(nameOf(e))+' · '+dtf.format(new Date(e.at))+'</span></span></li>';
+  }).join('');
+  var other=Object.keys(CAMPS).map(function(k){ return '<span class="meta">'+esc(CAMPS[k])+' : </span>'+pill(info(p,k)); }).join(' ');
+  return '<div class="card-title"><h2>'+esc(p.nom)+'</h2></div>'
+   +(p.adresse?'<p class="addr" style="margin:0">'+esc(p.adresse)+'</p>':'')+(p.note?'<p class="meta" style="margin:0">'+esc(p.note)+'</p>':'')
+   +'<div class="row">'+other+'</div>'
+   +'<p class="meta" style="margin:0">'+esc(CAMPS[S.camp])+' : '+esc(reason(i))+' · '+plural(i.total,'affiche')+' collée'+(i.total>1?'s':'')+(hasCoords(p)?'':' · position non renseignée')+'</p>'
+   +'<div class="row">'+w('<button type="button" class="btn primary" data-act="log-colle" data-id="'+p.id+'">'+icon('poster')+'Collé</button><button type="button" class="btn" data-act="log-constat" data-id="'+p.id+'">'+icon('eye')+'Constat</button><button type="button" class="btn" data-act="edit-panel" data-id="'+p.id+'">Modifier</button>')
+   +(mo?'<a class="btn" target="_blank" rel="noopener" href="'+esc(mo)+'">'+icon('map')+'Google Maps</a>':'')+'</div>'
+   +'<h3>Historique du panneau</h3>'+(evs?'<ul class="hist">'+evs+'</ul>':'<p class="muted" style="margin:0">Aucune intervention enregistrée.</p>')
+   +'<div class="row" style="justify-content:space-between">'
+   +(!S.canWrite?'<span></span>':askP?'<span class="row"><button type="button" class="btn danger" data-act="del-panel-ok" data-id="'+p.id+'">Confirmer la suppression</button><button type="button" class="btn" data-act="cancel-del">Annuler</button></span>':'<button type="button" class="btn danger small" data-act="del-panel">Supprimer le panneau</button>')
+   +'<button type="button" class="btn" data-act="close-sheet">Fermer</button></div>';
+}
+var lastFocus=null;
+function renderSheet(){
+  var sh=S.sheet,wrap=$('#sheet'),body=$('#sheetBody');
+  if(!sh){ wrap.hidden=true; document.body.style.overflow=''; return; }
+  wrap.hidden=false; document.body.style.overflow='hidden';
+  body.innerHTML=sh.mode==='log'?sheetLog(sh):sh.mode==='form'?sheetForm(sh):sheetDetail(sh);
+}
+function openSheet(sh){
+  if(!S.sheet) lastFocus=document.activeElement;
+  S.sheet=sh; S.confirm=null; renderSheet();
+  var f=$('#sheetBody input[type=text], #sheetBody input[type=number]'); if(f&&sh.mode!=='detail') setTimeout(function(){f.focus();},30);
+}
+function closeSheet(){ S.sheet=null; S.confirm=null; renderSheet(); if(lastFocus&&document.body.contains(lastFocus)) try{ lastFocus.focus(); }catch(e){} }
+
+/* ---------- actions ---------- */
+function setTab(t){ if(TABS.indexOf(t)<0) t='tableau'; S.tab=t; try{ if(location.hash!=='#'+t) location.hash=t; }catch(e){} render(); window.scrollTo(0,0); }
+document.addEventListener('click',function(ev){
+  var b=ev.target.closest('[data-act]'); if(!b) return;
+  var a=b.dataset.act,id=b.dataset.id;
+  if(a==='tab') return setTab(b.dataset.tab);
+  if(a==='camp'){ S.camp=b.dataset.camp; lsSet('tournez-camp',S.camp); return render(); }
+  if(a==='filter'){ S.filter=b.dataset.f; return render(); }
+  if(a==='add-panel') return openSheet({mode:'form'});
+  if(a==='edit-panel') return openSheet({mode:'form',id:id});
+  if(a==='detail') return openSheet({mode:'detail',id:id});
+  if(a==='log-colle') return openSheet({mode:'log',id:id,kind:'colle'});
+  if(a==='log-constat') return openSheet({mode:'log',id:id,kind:'constat'});
+  if(a==='close-sheet') return closeSheet();
+  if(a==='hist-more'){ S.histLimit+=60; return render(); }
+  if(a==='tour-build'){ buildTour(); return render(); }
+  if(a==='step'){ var n=$('#f-n'); n.value=Math.max(1,(parseInt(n.value,10)||0)+(+b.dataset.d)); return; }
+  if(a==='del-panel'){ S.confirm={type:'panel',id:S.sheet.id}; return renderSheet(); }
+  if(a==='cancel-del'){ S.confirm=null; return renderSheet(); }
+  if(a==='del-panel-ok'){
+    var p=S.panels.find(function(x){return x.id===id;}); if(!p) return;
+    return logEvent({panelId:p.id,panelNom:p.nom,action:'suppression',campagne:''}).then(function(){ return enqueue(id,function(){ return db.collection('panneaux').doc(id).delete(); }); })
+      .then(function(){ Object.keys(S.tours).forEach(function(k){ if(S.tours[k]) S.tours[k].ids=S.tours[k].ids.filter(function(x){return x!==id;}); }); closeSheet(); toast('Panneau supprimé'); }).catch(fail);
+  }
+});
+$('#sheet').addEventListener('click',function(e){ if(e.target===this) closeSheet(); });
+document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&S.sheet) closeSheet(); });
+document.addEventListener('input',function(e){
+  var t=e.target;
+  if(t.id==='q'){ S.q=t.value; return render(true); }
+  if(t.dataset&&t.dataset.hf==='q'){ S.hf.q=t.value; return render(true); }
+  if(t.id==='p-pos') $('#posFb').textContent=posFeedback(t.value);
+  if(t.id==='p-adr'||t.id==='p-nom'){ var l=$('#posLink'); if(l) l.href=mapsSearchUrl($('#p-nom').value,$('#p-adr').value); }
+});
+document.addEventListener('change',function(e){
+  var t=e.target;
+  if(t.name==='kind'){ var c=t.value==='colle'; $('#g-colle').hidden=!c; $('#g-constat').hidden=c; return; }
+  if(t.name==='etat'){ $('#g-parti').hidden=(t.value!=='recouvert'); return; }
+  if(t.dataset&&t.dataset.hf){ S.hf[t.dataset.hf]=t.value; return render(true); }
+  var o=t.dataset&&t.dataset.opt; if(!o) return;
+  if(o==='start'||o==='scope') S.tourOpts[o]=t.value;
+  if(o==='max') S.tourOpts.max=parseInt(t.value,10)||0;
+  if(o==='mode'){ S.settings=Object.assign({},S.settings,{mode:t.value}); saveSettings().catch(fail); }
+  if(o==='seuil'){ var v=Math.min(365,Math.max(1,parseInt(t.value,10)||14)); S.settings=Object.assign({},S.settings,{seuil:v}); saveSettings().catch(fail); }
+  render(true);
+});
+document.addEventListener('submit',function(e){
+  e.preventDefault();
+  var form=e.target,err=$('#formErr'),f=new FormData(form);
+  if(form.id==='logForm'){
+    var p=S.panels.find(function(x){return x.id===form.dataset.id;}); if(!p) return;
+    var at=new Date(f.get('at')); if(isNaN(at.getTime())){ err.textContent='Indique une date valide.'; return; }
+    var kind=f.get('kind'),ev={panelId:p.id,panelNom:p.nom,at:at.toISOString(),note:String(f.get('note')||'').trim()};
+    if(kind==='colle'){ var n=parseInt(f.get('n'),10); if(!(n>=1)){ err.textContent='Indique au moins une affiche.'; return; } ev.action='colle'; ev.n=n; }
+    else{
+      ev.action=f.get('etat')||'ok';
+      if(ev.action==='recouvert'){ var pa=f.get('parti'); if(!pa){ err.textContent='Choisis par quel parti le panneau a été recouvert (ou « Autre »).'; return; } ev.parti=pa; }
+    }
+    logEvent(ev).then(function(){ closeSheet(); toast(kind==='colle'?'Collage enregistré':'Constat enregistré'); }).catch(function(x){ err.textContent='Enregistrement impossible. Réessaie.'; fail(x); });
+    return;
+  }
+  if(form.id==='panelForm'){
+    var nom=String(f.get('nom')||'').trim(); if(!nom){ err.textContent='Donne un nom au panneau.'; return; }
+    var r=parseCoords(f.get('pos')); if(r.bad||r.short){ err.textContent=posFeedback(f.get('pos')); return; }
+    var old=form.dataset.id?S.panels.find(function(x){return x.id===form.dataset.id;}):null;
+    var np=Object.assign({},old||{id:uid(),created:new Date().toISOString(),createdBy:S.me.id||null},{nom:nom,adresse:String(f.get('adresse')||'').trim(),note:String(f.get('note')||'').trim(),lat:r.empty?null:r.lat,lng:r.empty?null:r.lng});
+    delete np.events;
+    savePanel(np).then(function(){ return logEvent({panelId:np.id,panelNom:np.nom,action:old?'modif':'creation',campagne:''}); })
+      .then(function(){ closeSheet(); toast(old?'Panneau modifié':'Panneau ajouté'); }).catch(function(x){ err.textContent='Enregistrement impossible. Réessaie.'; fail(x); });
+  }
+});
+window.addEventListener('hashchange',function(){ var h=location.hash.replace('#',''); if(TABS.indexOf(h)>=0&&h!==S.tab){ S.tab=h; render(); } });
+
+(function(){ var h=''; try{ h=location.hash.replace('#',''); }catch(e){} if(TABS.indexOf(h)>=0) S.tab=h; })();
+init();
+})();
+</script>
+</body>
+</html>
