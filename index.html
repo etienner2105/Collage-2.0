@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Tournez l'affichage</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b1f4d">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tournez l'affichage">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
 <style>
@@ -845,6 +852,7 @@ window.addEventListener('hashchange',function(){ var h=location.hash.replace('#'
 
 (function(){ var h=''; try{ h=location.hash.replace('#',''); }catch(e){} if(TABS.indexOf(h)>=0) S.tab=h; })();
 init();
+if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){ window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); }); }
 })();
 </script>
 </body>
