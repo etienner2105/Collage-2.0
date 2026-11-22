@@ -6,7 +6,6 @@
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Tournez l'affichage</title>
 <link rel="manifest" href="manifest.webmanifest">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <meta name="theme-color" content="#0b1f4d">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -511,16 +510,22 @@ function sheetName(){
    +'<p class="err" id="formErr" role="alert"></p><div class="row" style="margin-top:14px"><button type="submit" class="btn primary">Enregistrer</button>'+(S.me.name?'<button type="button" class="btn" data-act="close-sheet">Annuler</button>':'')+'</div></form>'
    +'<div class="row"><button type="button" class="btn small danger" data-act="logout">Quitter l\'équipe sur cet appareil</button></div>';
 }
+async function loadSupabase(){
+  if(window.supabase&&window.supabase.createClient) return window.supabase.createClient;
+  try{ var m=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/+esm'); return m.createClient||(m.default&&m.default.createClient)||null; }
+  catch(e){ return null; }
+}
 async function init(){
   var c=lsGet('tournez-camp'); if(c&&CAMPS[c]) S.camp=c;
   try{ S.tours=JSON.parse(lsGet('tournez-tours')||'{}')||{}; }catch(e){ S.tours={}; }
   loadLocal(); render();
   var cfg=window.APP_CONFIG||{};
-  if(!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY||!cfg.TEAM_EMAIL||!window.supabase){
+  var create=(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&cfg.TEAM_EMAIL)?await loadSupabase():null;
+  if(!create){
     if(lsGet(LS_AUTH)==='1'&&(S.panels.length||S.inter.length)){ enterReady(true); return; }
     S.noDb=true; S.auth='config'; S.loadedP=S.loadedI=true; render(); return;
   }
-  sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
+  sb=create(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
   sb.auth.onAuthStateChange(function(ev,session){ setTimeout(function(){ handleSession(session); },0); });
   window.addEventListener('online',function(){ refreshAll(); });
   document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') refreshAll(); });
