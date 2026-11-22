@@ -1,5 +1,5 @@
 -- Tournez l'affichage : base de données partagée par l'équipe.
--- À coller en entier dans Supabase > SQL Editor > Run.
+-- À coller en entier dans Supabase > SQL Editor > Run. Peut être relancé sans risque.
 
 create table if not exists panneaux      (id text primary key, data jsonb not null);
 create table if not exists interventions (id text primary key, data jsonb not null, created_at timestamptz not null default now());
@@ -24,4 +24,12 @@ drop policy if exists "ajouter historique" on interventions;
 create policy "ajouter historique" on interventions for insert to authenticated with check ((auth.jwt() ->> 'email') = 'equipe@exemple.fr');
 
 -- Synchronisation en direct entre les appareils.
-alter publication supabase_realtime add table panneaux, interventions, reglages;
+do $$
+declare t text;
+begin
+  foreach t in array array['panneaux','interventions','reglages'] loop
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
