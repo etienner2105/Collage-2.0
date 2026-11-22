@@ -9,6 +9,11 @@ alter table panneaux      enable row level security;
 alter table interventions enable row level security;
 alter table reglages      enable row level security;
 
+-- Autorisations de base pour le compte connecté (sans elles : erreur 42501, permission refusée).
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on panneaux, reglages to authenticated;
+grant select, insert on interventions to authenticated;
+
 -- Seul le compte « équipe » (equipe@exemple.fr, dont le mot de passe est le code d'équipe) accède aux données.
 -- Même si quelqu'un parvenait à créer un autre compte, il ne verrait rien.
 drop policy if exists "equipe panneaux" on panneaux;
