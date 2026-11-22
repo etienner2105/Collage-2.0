@@ -8,7 +8,7 @@ Toute modification est enregistrée en ligne et apparaît en direct sur tous les
 
 1. **Projet.** Sur supabase.com, crée un compte gratuit puis un projet (région en Europe).
 2. **Inscriptions.** Authentication > Sign In / Providers : dans Email, désactive « Allow new users to sign up » et « Confirm email ». Laisse « Allow anonymous sign-ins » désactivé.
-3. **Compte de l'équipe.** Authentication > Users > Add user > Create new user. Saisis une adresse e-mail (même fictive, par exemple `equipe@exemple.fr`) et, comme mot de passe, le **code d'équipe** que vous choisissez (8 caractères ou plus). Coche « Auto Confirm User ».
+3. **Compte de l'équipe.** Authentication > Users > Add user > Create new user. Saisis exactement l'adresse `equipe@exemple.fr` (fictive, elle ne reçoit rien ; si tu en choisis une autre, change-la aussi dans `config.js` et dans `supabase/schema.sql`) et, comme mot de passe, le **code d'équipe** que vous choisissez (8 caractères ou plus). Coche « Auto Confirm User ».
 4. **Base.** SQL Editor > New query : colle le contenu de `supabase/schema.sql`, puis Run.
 5. **Relier le site.** Project Settings > API : recopie « Project URL » et la clé « anon public » dans `config.js`, avec l'adresse e-mail du compte équipe dans `TEAM_EMAIL`.
 6. **Publier.** Settings > Pages du dépôt : branche `main`, dossier `/`.
