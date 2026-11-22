@@ -2,25 +2,28 @@
 
 Application de gestion des panneaux d'affichage libre : collages, nombre d'affiches, constats (conforme, à contrôler, décollé, recouvert par un parti), historique signé par prénom, tableau de bord et tournée avec lien Google Maps. Deux campagnes : Nouvelle Energie et #RemueMéninges.
 
-Le site est un seul fichier, `index.html`. Il n'y a ni compte ni mot de passe.
+Toute modification est enregistrée en ligne et apparaît en direct sur tous les appareils de l'équipe. L'accès est protégé par un code d'équipe commun, sans comptes individuels. Sans réseau, les modifications sont gardées sur l'appareil et partent dès le retour de la connexion.
 
-## Mise en ligne
+## Mise en route (une seule fois)
 
-Sur GitHub, ouvre Settings > Pages, choisis la branche `main` et le dossier racine (`/`), puis enregistre. Le site est disponible quelques minutes plus tard à l'adresse `https://etienner2105.github.io/Collage-2.0/`.
+1. **Projet.** Sur supabase.com, crée un compte gratuit puis un projet (région en Europe).
+2. **Inscriptions.** Authentication > Sign In / Providers : dans Email, désactive « Allow new users to sign up » et « Confirm email ». Laisse « Allow anonymous sign-ins » désactivé.
+3. **Compte de l'équipe.** Authentication > Users > Add user > Create new user. Saisis une adresse e-mail (même fictive, par exemple `equipe@exemple.fr`) et, comme mot de passe, le **code d'équipe** que vous choisissez (8 caractères ou plus). Coche « Auto Confirm User ».
+4. **Base.** SQL Editor > New query : colle le contenu de `supabase/schema.sql`, puis Run.
+5. **Relier le site.** Project Settings > API : recopie « Project URL » et la clé « anon public » dans `config.js`, avec l'adresse e-mail du compte équipe dans `TEAM_EMAIL`.
+6. **Publier.** Settings > Pages du dépôt : branche `main`, dossier `/`.
+
+Chaque personne ouvre le site, saisit le code d'équipe une fois sur son appareil, puis indique son prénom. Le prénom signe ses saisies dans l'historique.
 
 ## Installer comme une application
 
-Une fois le site en ligne, ouvre son adresse sur le téléphone :
+- iPhone (Safari) : Partager, puis « Sur l'écran d'accueil ».
+- Android (Chrome) : menu, puis « Installer l'application ».
+- Ordinateur (Chrome ou Edge) : icône d'installation dans la barre d'adresse.
 
-- iPhone (Safari) : bouton Partager, puis « Sur l'écran d'accueil ».
-- Android (Chrome) : menu, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».
+## Sécurité
 
-L'icône « Tournez l'affichage » apparaît avec les autres applications. L'app s'ouvre en plein écran et marche aussi sans réseau, ce qui est utile en tournée. Seul le lien Google Maps demande une connexion.
-
-## Où sont les données
-
-Les données restent dans le navigateur de chaque appareil. Elles ne sont pas synchronisées entre les appareils.
-
-- Le bouton « Télécharger la sauvegarde » (Tableau de bord) crée un fichier à garder ou à envoyer.
-- Le bouton « Importer une sauvegarde » ajoute à un autre appareil les panneaux et interventions qui lui manquent, sans rien effacer. C'est ainsi que l'équipe met ses données en commun.
-- Vider les données du navigateur efface tout : pense à sauvegarder régulièrement.
+- Sans le code d'équipe, personne ne lit ni n'écrit les données.
+- L'historique ne peut ni être modifié ni effacé.
+- La clé `anon` de `config.js` est publique par conception. Ne mets jamais la clé `service_role` dans ce dépôt.
+- Pour changer le code : Authentication > Users, modifie le mot de passe du compte équipe. Les appareils déjà connectés le restent jusqu'à leur déconnexion.
