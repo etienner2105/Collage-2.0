@@ -6,6 +6,8 @@
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Tournez l'affichage</title>
 <link rel="manifest" href="manifest.webmanifest">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
 <meta name="theme-color" content="#0b1f4d">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -233,7 +235,6 @@ svg.wk text.v{fill:var(--fg); font-weight:600}
   <div class="sheet-card" id="sheetBody" role="dialog" aria-modal="true" aria-label="Saisie"></div>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
-<input type="file" id="importFile" accept=".json,application/json" hidden>
 
 <script>
 (function(){
@@ -386,65 +387,143 @@ function logEvent(o){
 }
 function saveSettings(){ return enqueue('settings',function(){ return put('reglages','main',{seuil:S.settings.seuil,mode:S.settings.mode}); }); }
 
-var LS_DATA='tournez-data-v1';
-function persist(){
-  try{ localStorage.setItem(LS_DATA,JSON.stringify({panels:S.panels,inter:S.inter,settings:S.settings,me:S.me})); S.storeErr=false; }
-  catch(e){ S.storeErr=true; }
-}
+var LS_ME='tournez-me', LS_CACHE='tournez-cache', LS_Q='tournez-queue', LS_AUTH='tournez-authed';
+var queue=[], flushing=false;
 function loadLocal(){
-  try{
-    var d=JSON.parse(lsGet(LS_DATA)||'null');
-    if(d){ S.panels=Array.isArray(d.panels)?d.panels:[]; S.inter=Array.isArray(d.inter)?d.inter:[]; if(d.settings) S.settings=Object.assign(S.settings,d.settings); if(d.me&&d.me.name) S.me={id:'local',name:d.me.name}; }
-  }catch(e){}
+  try{ var m=JSON.parse(lsGet(LS_ME)||'null'); if(m&&m.name) S.me={id:'local',name:m.name}; }catch(e){}
+  try{ var c=JSON.parse(lsGet(LS_CACHE)||'null'); if(c){ S.panels=Array.isArray(c.panels)?c.panels:[]; S.inter=Array.isArray(c.inter)?c.inter:[]; if(c.settings) S.settings=Object.assign(S.settings,c.settings); } }catch(e){}
+  try{ queue=JSON.parse(lsGet(LS_Q)||'[]')||[]; }catch(e){ queue=[]; }
   reindex();
 }
-function put(table,id,body){
-  if(table==='panneaux'){
-    var o=Object.assign({},body,{id:id}),i=S.panels.findIndex(function(x){return x.id===id;});
+function saveMe(){ lsSet(LS_ME,JSON.stringify({name:S.me.name})); }
+function saveCache(){
+  try{ localStorage.setItem(LS_CACHE,JSON.stringify({panels:S.panels,inter:S.inter,settings:S.settings})); S.storeErr=false; }
+  catch(e){ S.storeErr=true; }
+}
+function saveQueue(){ lsSet(LS_Q,JSON.stringify(queue)); }
+
+/* une modification s'applique tout de suite à l'écran, puis part vers la base ; hors réseau elle attend dans une file */
+function applyOp(op){
+  if(op.t==='del'){ S.panels=S.panels.filter(function(x){return x.id!==op.id;}); return; }
+  if(op.table==='panneaux'){
+    var o=Object.assign({},op.body,{id:op.id}),i=S.panels.findIndex(function(x){return x.id===op.id;});
     S.panels=S.panels.slice(); if(i>=0) S.panels[i]=o; else S.panels.push(o);
-  } else if(table==='interventions'){
-    S.inter=S.inter.concat([Object.assign({},body,{id:id})]); reindex();
-  } else { S.settings=Object.assign({},S.settings,body); }
-  persist(); render(); return Promise.resolve();
+  } else if(op.table==='interventions'){
+    if(!S.inter.some(function(x){return x.id===op.id;})){ S.inter=S.inter.concat([Object.assign({},op.body,{id:op.id})]); reindex(); }
+  } else { S.settings=Object.assign({},S.settings,op.body); }
 }
-function del(table,id){ S.panels=S.panels.filter(function(x){return x.id!==id;}); persist(); render(); return Promise.resolve(); }
-function exportData(){
-  var blob=new Blob([JSON.stringify({app:'tournez-laffichage',version:1,exporte:new Date().toISOString(),panels:S.panels,inter:S.inter,settings:S.settings},null,1)],{type:'application/json'});
-  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tournez-laffichage-'+new Date().toISOString().slice(0,10)+'.json';
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); },3000);
-  toast('Sauvegarde téléchargée');
+function enqueueOp(op){
+  queue.push(op); saveQueue(); applyOp(op); saveCache(); render(); flush();
+  return Promise.resolve();
 }
-function importData(file){
-  if(!file) return;
-  var r=new FileReader();
-  r.onload=function(){
-    try{
-      var d=JSON.parse(r.result);
-      if(!d||d.app!=='tournez-laffichage'||!Array.isArray(d.panels)||!Array.isArray(d.inter)) throw new Error('format');
-      var np=0,ni=0,pid={},eid={};
-      S.panels.forEach(function(p){pid[p.id]=1;}); S.inter.forEach(function(e){eid[e.id]=1;});
-      d.panels.forEach(function(p){ if(p&&typeof p.id==='string'&&!pid[p.id]){ S.panels.push(p); pid[p.id]=1; np++; } });
-      d.inter.forEach(function(e){ if(e&&typeof e.id==='string'&&!eid[e.id]){ S.inter.push(e); eid[e.id]=1; ni++; } });
-      reindex(); persist(); render();
-      toast(np+' panneau(x) et '+ni+' intervention(s) ajoutés');
-    }catch(x){ toast('Fichier non reconnu. Choisis une sauvegarde exportée par cette app.'); }
-  };
-  r.readAsText(file);
+function put(table,id,body){ return enqueueOp({t:'put',table:table,id:id,body:body}); }
+function del(table,id){ return enqueueOp({t:'del',table:table,id:id}); }
+async function flush(){
+  if(flushing||!sb||!queue.length||S.auth!=='ready') return;
+  flushing=true;
+  try{
+    while(queue.length){
+      var op=queue[0],r;
+      try{
+        if(op.t==='del') r=await sb.from(op.table).delete().eq('id',op.id);
+        else if(op.table==='interventions') r=await sb.from('interventions').insert({id:op.id,data:op.body});
+        else r=await sb.from(op.table).upsert({id:op.id,data:op.body});
+      }catch(e){ r={error:{message:String(e)}}; }
+      var er=r.error;
+      if(er&&!er.code){ S.offline=true; break; }
+      if(er&&(er.code==='PGRST301'||r.status===401)){ break; }
+      if(er&&er.code!=='23505'){ toast('Une modification a été refusée par la base.'); }
+      S.offline=false; queue.shift(); saveQueue();
+    }
+  } finally{ flushing=false; }
+  render(true);
+}
+async function fetchAll(table){
+  var out=[],from=0,size=1000;
+  for(;;){
+    var r=await sb.from(table).select('id,data').order('id').range(from,from+size-1);
+    if(r.error) return {error:r.error};
+    out=out.concat(r.data||[]); if(!r.data||r.data.length<size) break; from+=size;
+  }
+  return {data:out};
+}
+function netFail(er){ S.offline=!er.code; if(er.code) S.error=er.code; }
+async function loadP(){
+  var r=await fetchAll('panneaux');
+  if(r.error) netFail(r.error); else{ S.error=null; S.offline=false; S.panels=r.data.map(function(x){return Object.assign({},x.data,{id:x.id});}); queue.forEach(function(o){ if(o.table==='panneaux') applyOp(o); }); saveCache(); }
+  S.loadedP=true; render();
+}
+async function loadI(){
+  var r=await fetchAll('interventions');
+  if(r.error) netFail(r.error); else{ S.error=null; S.offline=false; S.inter=r.data.map(function(x){return Object.assign({},x.data,{id:x.id});}); queue.forEach(function(o){ if(o.table==='interventions') applyOp(o); }); reindex(); saveCache(); }
+  S.loadedI=true; render();
+}
+async function loadR(){
+  var r=await sb.from('reglages').select('id,data').eq('id','main');
+  if(!r.error&&r.data&&r.data[0]){ var d=r.data[0].data||{}; S.settings=Object.assign({},S.settings,{seuil:d.seuil||S.settings.seuil,mode:d.mode||S.settings.mode}); saveCache(); render(); }
+}
+function loadAll(){ return Promise.all([loadP(),loadI(),loadR()]); }
+var timers={};
+function later(k,fn){ clearTimeout(timers[k]); timers[k]=setTimeout(fn,200); }
+function subscribe(){
+  if(rt){ sb.removeChannel(rt); rt=null; }
+  var on=function(c,t,fn){ return c.on('postgres_changes',{event:'*',schema:'public',table:t},function(){ later(t,fn); }); };
+  var c=sb.channel('maj'); c=on(c,'panneaux',loadP); c=on(c,'interventions',loadI); c=on(c,'reglages',loadR);
+  rt=c.subscribe();
+}
+function enterReady(offline){
+  S.noDb=false; S.auth='ready'; S.offline=!!offline;
+  S.loadedP=S.loadedI=!!(S.panels.length||S.inter.length)||!!offline;
+  render();
+  if(!S.me.name) openSheet({mode:'name'});
+}
+async function handleSession(session){
+  if(!session){
+    if(lsGet(LS_AUTH)==='1'&&navigator.onLine===false){ if(S.auth!=='ready') enterReady(true); return; }
+    if(rt){ sb.removeChannel(rt); rt=null; }
+    S.noDb=true; S.auth='login'; S.loadedP=S.loadedI=true; S.sheet=null; renderSheet(); render(); return;
+  }
+  if(S.auth==='ready'&&!S.offline) return;
+  lsSet(LS_AUTH,'1');
+  enterReady(false);
+  await loadAll(); await flush(); subscribe();
+}
+async function refreshAll(){
+  if(!sb||S.auth!=='ready') return;
+  var r=await sb.auth.getSession();
+  if(!r.data||!r.data.session){ if(navigator.onLine!==false){ S.noDb=true; S.auth='login'; render(); } return; }
+  await loadAll(); await flush(); subscribe();
+}
+function logout(){
+  lsSet(LS_AUTH,''); lsSet(LS_CACHE,''); lsSet(LS_Q,''); queue=[]; S.panels=[]; S.inter=[]; reindex(); S.auth='login';
+  if(sb) sb.auth.signOut(); closeSheet(); handleSession(null);
+}
+function authView(){
+  if(S.auth==='config') return '<div class="empty"><h2>Configuration manquante</h2><p>Renseigne l\'adresse du projet Supabase, sa clé publique et l\'adresse e-mail de l\'équipe dans le fichier config.js, puis recharge la page.</p></div>';
+  if(S.auth!=='login') return '<div class="empty"><p>Chargement…</p></div>';
+  return '<div class="panel authbox"><h2>Code d\'équipe</h2><p class="muted" style="margin:0">Saisis le code commun à l\'équipe. Il est demandé une seule fois sur cet appareil.</p>'
+   +'<form id="codeForm" novalidate><div class="field"><label for="c-code">Code</label><input id="c-code" name="code" type="password" autocomplete="current-password"></div>'
+   +'<p class="err" id="formErr" role="alert"></p><button type="submit" class="btn primary">Entrer</button></form></div>';
 }
 function sheetName(){
   return '<h2>Ton prénom</h2><p class="muted" style="margin:0">Il signe tes saisies dans l\'historique. Il reste sur cet appareil.</p>'
    +'<form id="nameForm" novalidate><div class="field"><label for="n-nom">Prénom</label><input id="n-nom" name="nom" type="text" maxlength="40" autocomplete="given-name" value="'+esc(S.me.name)+'"></div>'
-   +'<p class="err" id="formErr" role="alert"></p><div class="row" style="margin-top:14px"><button type="submit" class="btn primary">Enregistrer</button>'+(S.me.name?'<button type="button" class="btn" data-act="close-sheet">Annuler</button>':'')+'</div></form>';
-}
-function backupPanel(){
-  return '<div class="panel"><h3>Sauvegarde</h3><p class="muted" style="margin:0">Les données restent sur cet appareil. Télécharge une sauvegarde pour la garder ou la transférer sur un autre appareil. Importer ajoute les panneaux et interventions qui manquent, sans rien effacer.</p>'
-   +'<div class="row"><button type="button" class="btn" data-act="export">Télécharger la sauvegarde</button><button type="button" class="btn" data-act="import">Importer une sauvegarde</button></div></div>';
+   +'<p class="err" id="formErr" role="alert"></p><div class="row" style="margin-top:14px"><button type="submit" class="btn primary">Enregistrer</button>'+(S.me.name?'<button type="button" class="btn" data-act="close-sheet">Annuler</button>':'')+'</div></form>'
+   +'<div class="row"><button type="button" class="btn small danger" data-act="logout">Quitter l\'équipe sur cet appareil</button></div>';
 }
 async function init(){
   var c=lsGet('tournez-camp'); if(c&&CAMPS[c]) S.camp=c;
   try{ S.tours=JSON.parse(lsGet('tournez-tours')||'{}')||{}; }catch(e){ S.tours={}; }
-  loadLocal(); S.loadedP=S.loadedI=true; render();
-  if(!S.me.name) openSheet({mode:'name'});
+  loadLocal(); render();
+  var cfg=window.APP_CONFIG||{};
+  if(!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY||!cfg.TEAM_EMAIL||!window.supabase){
+    if(lsGet(LS_AUTH)==='1'&&(S.panels.length||S.inter.length)){ enterReady(true); return; }
+    S.noDb=true; S.auth='config'; S.loadedP=S.loadedI=true; render(); return;
+  }
+  sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
+  sb.auth.onAuthStateChange(function(ev,session){ setTimeout(function(){ handleSession(session); },0); });
+  window.addEventListener('online',function(){ refreshAll(); });
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') refreshAll(); });
 }
 async function resolveNames(){
   if(!userNS) return;
@@ -558,7 +637,7 @@ function hbars(items,empty){
 function w(h){ return S.canWrite?h:''; }
 function emptyState(){
   return '<div class="empty"><h2>Aucun panneau pour l\'instant</h2><p>Ajoute chaque panneau d\'affichage libre où vous collez, avec son adresse et, pour calculer un ordre de passage, sa position. Les deux campagnes partagent les mêmes panneaux.</p>'
-   +w('<div class="row"><button type="button" class="btn primary" data-act="add-panel">'+icon('plus')+'Ajouter un panneau</button><button type="button" class="btn" data-act="import">Importer une sauvegarde</button></div>')+'</div>';
+   +w('<div class="row"><button type="button" class="btn primary" data-act="add-panel">'+icon('plus')+'Ajouter un panneau</button></div>')+'</div>';
 }
 function viewTableau(){
   if(!S.panels.length) return emptyState();
@@ -581,7 +660,7 @@ function viewTableau(){
   var per='<div class="panel"><h3>Interventions par personne</h3>'+hbars(people,'Aucune intervention enregistrée.')+'</div>';
   var recent=S.inter.filter(function(e){return !e.campagne||e.campagne===S.camp;}).sort(function(a,b){return new Date(b.at)-new Date(a.at);}).slice(0,6);
   var rec='<div class="panel"><h3>Dernières interventions</h3>'+(recent.length?feed(recent):'<p class="muted" style="margin:0">Rien pour l\'instant.</p>')+'</div>';
-  return tiles+'<div class="charts">'+state+wk+cov+per+'</div>'+rec+backupPanel();
+  return tiles+'<div class="charts">'+state+wk+cov+per+'</div>'+rec;
 }
 function feed(list){
   return '<ul class="feed">'+list.map(function(e){
@@ -684,6 +763,8 @@ function renderChrome(){
 }
 function renderBanner(){
   var p=[],authors={}; S.inter.forEach(function(e){ if(e.auteurId) authors[e.auteurId]=1; });
+  if(S.offline) p.push('Hors ligne : tes modifications sont gardées sur cet appareil et partent dès le retour du réseau.');
+  else if(queue.length) p.push(queue.length+' modification(s) en cours d\'envoi.');
   if(S.storeErr) p.push('Impossible d\'enregistrer sur cet appareil (navigation privée ou stockage plein). Télécharge une sauvegarde dès maintenant.');
   if(S.error) p.push('Lecture impossible ('+esc(S.error)+'). Recharge la page.');
   if(S.slow) p.push('Les données mettent du temps à arriver. Ce qui est affiché peut être en retard.');
@@ -693,9 +774,10 @@ function renderBanner(){
   $('#banner').innerHTML=p.map(function(t){return '<div class="note">'+t+'</div>';}).join('');
 }
 function render(keepFocus){
-  renderChrome(); renderBanner(); $('#who').textContent=S.me.name?('Prénom : '+S.me.name):'Indique ton prénom';
+  renderChrome(); renderBanner(); $('#who').textContent=S.me.name?('Prénom : '+S.me.name):'Indique ton prénom'; document.body.classList.toggle('locked',!!S.noDb);
   var v=$('#view');
   
+  if(S.noDb){ v.innerHTML=authView(); return; }
   if(!(S.loadedP&&S.loadedI)){ v.innerHTML='<div class="empty"><p>Chargement des panneaux…</p></div>'; return; }
   var ae=document.activeElement,aid=ae&&ae.id&&/^(q|h-q)$/.test(ae.id)?ae.id:null,pos=aid?ae.selectionStart:0;
   v.innerHTML=S.tab==='tournee'?viewTournee():S.tab==='historique'?viewHistorique():S.tab==='panneaux'?viewPanneaux():viewTableau();
@@ -775,8 +857,7 @@ document.addEventListener('click',function(ev){
   var b=ev.target.closest('[data-act]'); if(!b) return;
   var a=b.dataset.act,id=b.dataset.id;
   if(a==='name') return openSheet({mode:'name'});
-  if(a==='export') return exportData();
-  if(a==='import') return $('#importFile').click();
+  if(a==='logout') return logout();
   if(a==='tab') return setTab(b.dataset.tab);
   if(a==='camp'){ S.camp=b.dataset.camp; lsSet('tournez-camp',S.camp); return render(); }
   if(a==='filter'){ S.filter=b.dataset.f; return render(); }
@@ -808,7 +889,6 @@ document.addEventListener('input',function(e){
 });
 document.addEventListener('change',function(e){
   var t=e.target;
-  if(t.id==='importFile'){ importData(t.files[0]); t.value=''; return; }
   if(t.name==='kind'){ var c=t.value==='colle'; $('#g-colle').hidden=!c; $('#g-constat').hidden=c; return; }
   if(t.name==='etat'){ $('#g-parti').hidden=(t.value!=='recouvert'); return; }
   if(t.dataset&&t.dataset.hf){ S.hf[t.dataset.hf]=t.value; return render(true); }
@@ -822,9 +902,17 @@ document.addEventListener('change',function(e){
 document.addEventListener('submit',function(e){
   e.preventDefault();
   var form=e.target,err=$('#formErr'),f=new FormData(form);
+  if(form.id==='codeForm'){
+    var code=String(f.get('code')||''); if(!code){ err.textContent='Saisis le code d\'équipe.'; return; }
+    var cb=form.querySelector('button[type=submit]'); cb.disabled=true; err.textContent='';
+    sb.auth.signInWithPassword({email:window.APP_CONFIG.TEAM_EMAIL,password:code}).then(function(r){
+      if(r.error){ err.textContent=/fetch|network/i.test(r.error.message||'')?'Connexion impossible. Vérifie ton réseau.':'Code incorrect.'; cb.disabled=false; }
+    });
+    return;
+  }
   if(form.id==='nameForm'){
     var nm=String(f.get('nom')||'').trim(); if(!nm){ err.textContent='Indique ton prénom.'; return; }
-    S.me={id:'local',name:nm}; persist(); closeSheet(); render(); toast('Prénom enregistré'); return;
+    S.me={id:'local',name:nm}; saveMe(); closeSheet(); render(); toast('Prénom enregistré'); return;
   }
   if(form.id==='logForm'){
     var p=S.panels.find(function(x){return x.id===form.dataset.id;}); if(!p) return;
